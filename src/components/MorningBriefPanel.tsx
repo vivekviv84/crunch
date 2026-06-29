@@ -1,16 +1,14 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Sparkles, RefreshCw, X, AlertTriangle } from "lucide-react";
-import { api } from "../services/api";
 import { Task } from "../types";
 import { motion, AnimatePresence } from "motion/react";
-
-interface MorningBriefData {
-  topPriority: string;
-  biggestRisk: string;
-  completionForecast: string;
-  motivationQuote: string;
-  checklistMVP: string[];
-}
+import {
+  fetchMorningBrief,
+  cancelMorningBrief,
+  buildMorningBriefKey,
+  EMPTY_BRIEF,
+  MorningBriefData,
+} from "../services/morningBriefService";
 
 interface MorningBriefPanelProps {
   tasks: Task[];
@@ -22,34 +20,52 @@ export default function MorningBriefPanel({ tasks, onStartWorking }: MorningBrie
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showBrief, setShowBrief] = useState(true);
+  const mountedRef = useRef(true);
 
-  const fetchBrief = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await api.post("/api/agent/morning-brief", { tasks });
-      setBrief(response.data);
-    } catch (err: any) {
-      console.error("Failed to fetch Morning Brief:", err);
-      setError("Failed to generate AI morning briefing.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const taskKey = useMemo(() => buildMorningBriefKey(tasks), [tasks]);
+
+  const loadBrief = useCallback(
+    async (force = false) => {
+      if (tasks.length === 0) {
+        setBrief(EMPTY_BRIEF);
+        setLoading(false);
+        setError(null);
+        return;
+      }
+
+      setLoading(true);
+      setError(null);
+
+      try {
+        const data = await fetchMorningBrief(tasks, { force });
+        if (mountedRef.current) {
+          setBrief(data);
+        }
+      } catch (err: unknown) {
+        const e = err as { name?: string };
+        if (e.name === "AbortError" || !mountedRef.current) return;
+        setError("Failed to generate AI morning briefing.");
+      } finally {
+        if (mountedRef.current) {
+          setLoading(false);
+        }
+      }
+    },
+    [tasks]
+  );
 
   useEffect(() => {
-    if (tasks.length > 0) {
-      fetchBrief();
-    } else {
-      setBrief({
-        topPriority: "Initiate Your First Project Plan",
-        biggestRisk: "No active projects tracked. Procrastination sets in when objectives remain undefined.",
-        completionForecast: "N/A - Setup a task in the Crisis Intake system first.",
-        motivationQuote: "The secret of getting ahead is getting started. Take 2 minutes and dump your thoughts.",
-        checklistMVP: ["Create or upload a task syllabus", "Activate Rescue Mode on your top bottleneck"]
-      });
-    }
-  }, [tasks]);
+    mountedRef.current = true;
+    loadBrief(false);
+    return () => {
+      mountedRef.current = false;
+      cancelMorningBrief();
+    };
+  }, [taskKey, loadBrief]);
+
+  const handleRefresh = useCallback(() => {
+    loadBrief(true);
+  }, [loadBrief]);
 
   if (!showBrief) return null;
 
@@ -88,7 +104,7 @@ export default function MorningBriefPanel({ tasks, onStartWorking }: MorningBrie
                   <p className="text-sm font-medium text-gray-900 leading-snug">
                     {brief.topPriority}
                   </p>
-                  
+
                   <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-indigo-900/70 font-medium">
                     {brief.biggestRisk && (
                       <span className="flex items-center gap-1">
@@ -108,7 +124,7 @@ export default function MorningBriefPanel({ tasks, onStartWorking }: MorningBrie
 
           <div className="flex items-center gap-1.5 shrink-0">
             <button
-              onClick={fetchBrief}
+              onClick={handleRefresh}
               disabled={loading}
               className="p-1 text-indigo-400 hover:text-indigo-800 rounded-md transition-colors cursor-pointer"
               title="Refresh Brief"

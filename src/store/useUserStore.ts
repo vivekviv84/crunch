@@ -14,7 +14,7 @@ interface UserState {
   loginWithGoogle: (email?: string, fullName?: string, avatarUrl?: string) => Promise<void>;
   loginBypass: (email: string, fullName?: string) => Promise<void>;
   logout: () => Promise<void>;
-  initializeAuth: () => void;
+  initializeAuth: () => () => void;
   setError: (error: string | null) => void;
   clearError: () => void;
 }
@@ -153,15 +153,12 @@ export const useUserStore = create<UserState>((set, get) => {
     },
 
     initializeAuth: () => {
-      initAuth(
+      return initAuth(
         async (user, googleAccessToken) => {
-          console.log("Firebase Auth detected persistent login for:", user.email);
-          
           const storedUserStr = localStorage.getItem("crunch_user");
           const storedUser = storedUserStr ? JSON.parse(storedUserStr) : null;
-          
+
           if (!storedUser || storedUser.id !== user.uid) {
-            console.log("User session out of sync, re-syncing with backend...");
             try {
               const response = await api.post("/api/v1/auth/google", {
                 email: user.email || storedUser?.email || "academic.warrior@gmail.com",
@@ -182,7 +179,6 @@ export const useUserStore = create<UserState>((set, get) => {
           set({ isAuthenticated: true, authInitialized: true });
         },
         () => {
-          console.log("No persistent Firebase user session active.");
           localStorage.removeItem("crunch_user");
           localStorage.removeItem("crunch_token");
           set({ user: null, token: null, isAuthenticated: false, authInitialized: true });

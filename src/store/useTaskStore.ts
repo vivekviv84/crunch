@@ -5,6 +5,24 @@ import * as FirestoreService from "../services/FirestoreService";
 import { useUserStore } from "./useUserStore";
 import { auth } from "../services/firebase";
 
+function tasksFingerprint(tasks: Task[]): string {
+  return tasks
+    .map((t) => {
+      const completed = t.subtasks?.filter((s) => s.completed).length ?? 0;
+      return `${t.id}:${t.status}:${t.paceState}:${completed}/${t.subtasks?.length ?? 0}`;
+    })
+    .join("|");
+}
+
+function logsFingerprint(logs: AgentLog[]): string {
+  if (logs.length === 0) return "";
+  const latest = logs[0];
+  return `${logs.length}:${latest?.timestamp ?? ""}:${latest?.message?.slice(0, 32) ?? ""}`;
+}
+
+let fetchTasksInflight: Promise<void> | null = null;
+let fetchLogsInflight: Promise<void> | null = null;
+
 interface TaskState {
   tasks: Task[];
   logs: AgentLog[];
@@ -35,40 +53,72 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   error: null,
 
   fetchTasks: async () => {
-    const { isAuthenticated, authInitialized, user } = useUserStore.getState();
-    const isDemo = user?.id?.startsWith("demo-");
-    if (!isAuthenticated || !authInitialized || !user?.id || (!isDemo && !auth.currentUser)) {
-      console.log("Skipping fetchTasks: Auth not fully initialized or user not logged in");
-      return;
-    }
-    set({ loading: true, error: null });
-    try {
-      const userId = user.id;
-      const data = await FirestoreService.getAllTasks(userId);
-      set({ 
-         tasks: data, 
-         loading: false,
-         selectedTaskId: get().selectedTaskId || (data.length > 0 ? data[0].id : "")
-      });
-    } catch (err: any) {
-      console.error("fetchTasks failed:", err);
-      set({ error: err.message || "Failed to fetch tasks", loading: false });
-    }
+    if (fetchTasksInflight) return fetchTasksInflight;
+
+    fetchTasksInflight = (async () => {
+      const { isAuthenticated, authInitialized, user } = useUserStore.getState();
+      const isDemo = user?.id?.startsWith("demo-");
+      if (!isAuthenticated || !authInitialized || !user?.id || (!isDemo && !auth.currentUser)) {
+        return;
+      }
+
+      const alreadyLoading = get().loading;
+      if (!alreadyLoading) {
+        set({ loading: true, error: null });
+      }
+
+      try {
+        const userId = user.id;
+        const data = await FirestoreService.getAllTasks(userId);
+        const prev = get().tasks;
+        const nextSelected =
+          get().selectedTaskId || (data.length > 0 ? data[0].id : "");
+
+        if (tasksFingerprint(prev) !== tasksFingerprint(data)) {
+          set({
+            tasks: data,
+            loading: false,
+            selectedTaskId: nextSelected,
+          });
+        } else {
+          set({ loading: false });
+        }
+      } catch (err: any) {
+        console.error("fetchTasks failed:", err);
+        set({ error: err.message || "Failed to fetch tasks", loading: false });
+      }
+    })().finally(() => {
+      fetchTasksInflight = null;
+    });
+
+    return fetchTasksInflight;
   },
 
   fetchLogs: async () => {
-    const { isAuthenticated, authInitialized, user } = useUserStore.getState();
-    const isDemo = user?.id?.startsWith("demo-");
-    if (!isAuthenticated || !authInitialized || !user?.id || (!isDemo && !auth.currentUser)) {
-      return;
-    }
-    try {
-      const userId = user.id;
-      const logs = await FirestoreService.getAgentLogs(userId);
-      set({ logs });
-    } catch (err: any) {
-      console.error("Error fetching logs:", err);
-    }
+    if (fetchLogsInflight) return fetchLogsInflight;
+
+    fetchLogsInflight = (async () => {
+      const { isAuthenticated, authInitialized, user } = useUserStore.getState();
+      const isDemo = user?.id?.startsWith("demo-");
+      if (!isAuthenticated || !authInitialized || !user?.id || (!isDemo && !auth.currentUser)) {
+        return;
+      }
+
+      try {
+        const userId = user.id;
+        const logs = await FirestoreService.getAgentLogs(userId);
+        const prev = get().logs;
+        if (logsFingerprint(prev) !== logsFingerprint(logs)) {
+          set({ logs });
+        }
+      } catch (err: any) {
+        console.error("Error fetching logs:", err);
+      }
+    })().finally(() => {
+      fetchLogsInflight = null;
+    });
+
+    return fetchLogsInflight;
   },
 
   setSelectedTaskId: (id: string) => set({ selectedTaskId: id }),

@@ -8,9 +8,15 @@ import cors from "cors";
 // Import custom middleware
 import { requestLogger } from "./middleware/logger";
 import { rateLimiter } from "./middleware/rateLimiter";
+import { aiRateLimiter } from "./middleware/aiRateLimiter";
 import { logger } from "./services/loggerService";
 import { csrfGenerator, csrfValidator } from "./middleware/csrf";
 import { requestSanitizer } from "./middleware/safety";
+
+// Import circuit breaker for health monitoring
+import { getAiManagerStatus, getAiRequestManager } from "./services/aiRequestManager";
+import { getGeminiCircuitBreaker } from "./services/circuitBreaker";
+import { getAiRateLimiterStatus } from "./middleware/aiRateLimiter";
 
 // Production Safety: Catch unhandled promises and exceptions to prevent process crash
 process.on("unhandledRejection", (reason, promise) => {
@@ -68,6 +74,10 @@ app.use(csrfGenerator);
 // Global Rate Limiting for all backend API endpoints
 app.use("/api", rateLimiter);
 
+// Dedicated AI Rate Limiting for /api/agent/* endpoints (more restrictive)
+// Must be placed AFTER the global rate limiter so AI routes hit BOTH limits.
+app.use("/api/agent", aiRateLimiter);
+
 // CSRF Validation specifically protecting state-changing API endpoints
 app.use("/api", csrfValidator);
 
@@ -82,6 +92,35 @@ app.use("/", agentsRouter);  // handles AI agents, briefings, outlines, SSE chat
 // Avoid noise logs from browser assets
 app.get("/favicon.ico", (req, res) => res.status(204).end());
 app.get("/manifest.json", (req, res) => res.status(204).end());
+
+// Health & monitoring endpoint
+app.get("/api/health", (req, res) => {
+  const cb = getGeminiCircuitBreaker().getMetrics();
+  const aiMgr = getAiManagerStatus();
+  const aiRate = getAiRateLimiterStatus();
+  res.json({
+    status: "ok",
+    timestamp: new Date().toISOString(),
+    gemini: {
+      circuitBreaker: {
+        state: cb.state,
+        failures: cb.failures,
+        totalCalls: cb.totalCalls,
+        totalFailures: cb.totalFailures,
+      },
+      aiManager: aiMgr,
+      aiRateLimiter: aiRate,
+    },
+  });
+});
+
+// Periodic cache pruning for AI manager (every 60s)
+setInterval(() => {
+  const removed = getAiRequestManager().pruneCache();
+  if (removed > 0) {
+    logger.info(`[AI-Manager] Pruned ${removed} expired cache entries.`);
+  }
+}, 60000);
 
 async function startServer() {
   if (process.env.NODE_ENV !== "production") {

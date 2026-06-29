@@ -24,7 +24,7 @@ import {
   dbGetRescueHistory,
   dbSaveRescueHistoryItem
 } from "../repositories/taskRepository";
-import { getGeminiClient, callGeminiWithRetry, GEMINI_MODEL, runIntakeAgent, runPlanningAgent } from "../services/geminiService";
+import { getGeminiClient, callGeminiWithRetry, callGeminiWithFallback, GEMINI_MODEL, runIntakeAgent, runPlanningAgent } from "../services/geminiService";
 import { getMockIntakeResponse, getMockPlanResponse, parseTasksHeuristically } from "../utils/heuristics";
 import { logger } from "../services/loggerService";
 
@@ -765,6 +765,37 @@ router.post("/api/agent/draft", async (req, res) => {
 });
 
 // Morning Brief AI Summarization Endpoint
+function buildMorningBriefCacheParams(tasks: any[]): Record<string, unknown> {
+  const taskKey = tasks
+    .map((t: any) => {
+      const completed = t.subtasks?.filter((s: any) => s.completed).length || 0;
+      const total = t.subtasks?.length || 0;
+      return `${t.id}:${completed}/${total}:${t.paceState}:${t.status}`;
+    })
+    .sort()
+    .join("|");
+  return { taskKey };
+}
+
+function computeMorningBriefFallback(tasks: any[]) {
+  const firstTask = tasks[0];
+  const remainingMs = new Date(firstTask.deadline).getTime() - Date.now();
+  const hoursLeft = Math.max(0, Math.round(remainingMs / (1000 * 60 * 60)));
+  return {
+    topPriority: `Milestone setup for: ${firstTask.title}`,
+    biggestRisk:
+      hoursLeft < 12
+        ? `Extreme Crunch Constraint: Only ${hoursLeft} hours left with critical milestones pending.`
+        : "Time dilution: getting bogged down in minor layout elements.",
+    completionForecast: `${Math.round(firstTask.estimatedHours || 4)} hours of targeted focus sprints.`,
+    motivationQuote: "Focus is a muscle. Work for 25 minutes, then look at your progress.",
+    checklistMVP: [
+      firstTask.starterTask || "Complete starter task immediately",
+      "Perform stress brain dump to clear focus",
+    ],
+  };
+}
+
 router.post("/api/agent/morning-brief", async (req, res) => {
   const { tasks } = req.body;
   const ai = getGeminiClient();
@@ -779,6 +810,8 @@ router.post("/api/agent/morning-brief", async (req, res) => {
     });
   }
 
+  const fallback = computeMorningBriefFallback(tasks);
+
   // Create descriptive summaries of active tasks
   const taskSummaryStr = tasks.map((t: any) => {
     const remainingMs = new Date(t.deadline).getTime() - Date.now();
@@ -789,7 +822,6 @@ router.post("/api/agent/morning-brief", async (req, res) => {
   }).join("\n");
 
   if (!ai) {
-    // Offline simulated briefing based on input tasks
     const firstTask = tasks[0];
     const remainingMs = new Date(firstTask.deadline).getTime() - Date.now();
     const hoursLeft = Math.max(0, Math.round(remainingMs / (1000 * 60 * 60)));
@@ -807,8 +839,7 @@ router.post("/api/agent/morning-brief", async (req, res) => {
     });
   }
 
-  try {
-    const prompt = `You are an elite productivity strategist and crisis rescue supervisor. Analyze the following list of active student/work tasks under crunch conditions and generate a highly focused Morning Debriefing.
+  const prompt = `You are an elite productivity strategist and crisis rescue supervisor. Analyze the following list of active student/work tasks under crunch conditions and generate a highly focused Morning Debriefing.
 Active Task List:
 ${taskSummaryStr}
 
@@ -821,9 +852,15 @@ Provide a concise, ultra-realistic debriefing in JSON matching this schema:
   "checklistMVP": ["Item 1 to start within 5 minutes", "Item 2 to complete right after"]
 }`;
 
-    const response = await callGeminiWithRetry(
-      { route: "/api/agent/morning-brief", model: GEMINI_MODEL },
-      (client) => client.models.generateContent({
+  const briefData = await callGeminiWithFallback(
+    {
+      route: "/api/agent/morning-brief",
+      model: GEMINI_MODEL,
+      cacheParams: buildMorningBriefCacheParams(tasks),
+      cacheTtlMs: 120000,
+    },
+    async (client) => {
+      const response = await client.models.generateContent({
         model: GEMINI_MODEL,
         contents: prompt,
         config: {
@@ -843,24 +880,13 @@ Provide a concise, ultra-realistic debriefing in JSON matching this schema:
             required: ["topPriority", "biggestRisk", "completionForecast", "motivationQuote", "checklistMVP"]
           }
         }
-      })
-    );
+      });
+      return JSON.parse(response.text?.trim() || "{}");
+    },
+    fallback
+  );
 
-    res.json(JSON.parse(response.text?.trim() || "{}"));
-  } catch (err: any) {
-    if (err?.message?.includes("API Key") || err?.message?.includes("key")) {
-      console.log("💡 [GEMINI INFO] Morning brief bypassed or unauthorized. Returning calculated local fallback.");
-    } else {
-      console.log("💡 [GEMINI INFO] Morning brief generation, returning calculated local fallback:", err?.message || err);
-    }
-    res.json({
-      topPriority: `Milestone setup for: ${tasks[0].title}`,
-      biggestRisk: "Time dilution: getting bogged down in minor layout elements.",
-      completionForecast: "3-4 hours of targeted focus sprints.",
-      motivationQuote: "Focus is a muscle. Work for 25 minutes, then look at your progress.",
-      checklistMVP: ["Complete starter task immediately", "Perform stress brain dump to clear focus"]
-    });
-  }
+  res.json(briefData);
 });
 
 router.post("/api/agent/simplify", async (req, res) => {

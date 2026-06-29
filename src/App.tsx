@@ -63,9 +63,10 @@ export default function App() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Initialize Firebase Auth subscription on app mount
+  // Initialize Firebase Auth subscription on app mount (StrictMode-safe cleanup)
   useEffect(() => {
-    initializeAuth();
+    const unsubscribe = initializeAuth();
+    return unsubscribe;
   }, [initializeAuth]);
 
   // Authentication and routing guard

@@ -30,38 +30,48 @@ export default function RescueCommandCenter({
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<"diagnostics" | "simulator" | "maximizer" | "differentiation">("diagnostics");
 
-  // Fetch updated intelligence payload whenever hours or progress overrides change
+  // Fetch intelligence payload with debounce and request cancellation
   useEffect(() => {
+    const abortController = new AbortController();
     let active = true;
-    const fetchPayload = async () => {
+
+    const debounceTimer = setTimeout(async () => {
       setLoading(true);
       try {
-        const response = await api.post("/api/agent/intelligence-dashboard", {
-          taskId,
-          hoursRemainingOverride: hoursRemaining,
-          progressOverride: progress,
-          subtasksOverride: {
-            total: 6,
-            completed: Math.round((progress / 100) * 6)
+        const response = await api.post(
+          "/api/agent/intelligence-dashboard",
+          {
+            taskId,
+            hoursRemainingOverride: hoursRemaining,
+            progressOverride: progress,
+            subtasksOverride: {
+              total: 6,
+              completed: Math.round((progress / 100) * 6),
+            },
+          },
+          {
+            signal: abortController.signal,
+            dedupeKey: `intelligence-dashboard:${taskId}:${hoursRemaining}:${progress}`,
           }
-        });
+        );
         if (active) {
           setData(response.data);
           setError(null);
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
+        const e = err as { name?: string; code?: string };
+        if (e.name === "CanceledError" || e.code === "ERR_CANCELED" || !active) return;
         console.error("Error loading intelligence dashboard:", err);
-        if (active) {
-          setError("Failed to coordinate intelligence telemetry.");
-        }
+        setError("Failed to coordinate intelligence telemetry.");
       } finally {
         if (active) setLoading(false);
       }
-    };
+    }, 800);
 
-    fetchPayload();
     return () => {
       active = false;
+      clearTimeout(debounceTimer);
+      abortController.abort();
     };
   }, [taskId, hoursRemaining, progress]);
 
