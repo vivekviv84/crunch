@@ -29,9 +29,9 @@ router.put("/api/tasks/:id", authenticateToken, updateTaskController);
 router.delete("/api/tasks/:id", authenticateToken, deleteTaskController);
 
 // Flat Microtasks Endpoints (supports array and single path matches)
-router.get(["/microtasks", "/api/v1/microtasks"], authenticateToken, getMicrotasksController);
-router.post(["/microtasks", "/api/v1/microtasks"], authenticateToken, createMicrotaskController);
-router.patch(["/microtasks/:id", "/api/v1/microtasks/:id"], authenticateToken, patchMicrotaskController);
-router.delete(["/microtasks/:id", "/api/v1/microtasks/:id"], authenticateToken, deleteMicrotaskController);
+router.get("/api/v1/microtasks", authenticateToken, getMicrotasksController);
+router.post("/api/v1/microtasks", authenticateToken, createMicrotaskController);
+router.patch("/api/v1/microtasks/:id", authenticateToken, patchMicrotaskController);
+router.delete("/api/v1/microtasks/:id", authenticateToken, deleteMicrotaskController);
 
 export default router;

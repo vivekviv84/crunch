@@ -4,7 +4,11 @@ import { dbUpsertUser } from "../repositories/taskRepository";
 import { authenticateToken } from "../middleware/auth";
 
 const router = express.Router();
-const JWT_SECRET = process.env.JWT_SECRET || "crunch-hyper-secure-rescue-pilot-jwt-key-2026";
+const JWT_SECRET = process.env.JWT_SECRET;
+
+if (!JWT_SECRET) {
+  throw new Error("JWT_SECRET environment variable is required. Set it in your .env file before starting the server.");
+}
 
 router.post("/google", async (req, res) => {
   const { email, fullName, avatarUrl, firebaseUid } = req.body;

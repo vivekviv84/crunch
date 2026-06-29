@@ -149,7 +149,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   updateTask: async (id, updateData) => {
     const previousTasks = get().tasks;
     const task = previousTasks.find(t => t.id === id);
-    let finalUpdateData = { ...updateData };
+    let finalUpdateData: Partial<Task> = { ...updateData };
 
     if (task && updateData.status === "Completed" && task.isRecurring) {
       if (task.recurrence === "daily") {
@@ -361,7 +361,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       }
 
       let finalSubtasks = subtasks;
-      let finalStatus = status;
+      let finalStatus: TaskStatus = status;
       let finalDeadline = task.deadline;
 
       if (allDone && task.isRecurring) {
@@ -383,10 +383,10 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       }
 
       // 1. Optimistic state update: Update Zustand store immediately
-      const updatedLocalTask = {
+      const updatedLocalTask: Task = {
         ...task,
         subtasks: finalSubtasks,
-        status: finalStatus,
+        status: finalStatus as TaskStatus,
         deadline: finalDeadline,
         paceState,
         xpGained: (task.xpGained || 0) + xpGained,
@@ -418,7 +418,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
 
           const savedTask = await FirestoreService.updateTask(taskId, {
             subtasks: finalSubtasks,
-            status: finalStatus,
+            status: finalStatus as TaskStatus,
             deadline: finalDeadline,
             paceState,
             xpGained: (task.xpGained || 0) + xpGained,

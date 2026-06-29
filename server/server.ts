@@ -36,8 +36,17 @@ const PORT = process.env.PORT ? Number(process.env.PORT) : 3000;
 
 // Security Middlewares
 app.use(helmet({
-  contentSecurityPolicy: false,     // Disable CSP to allow Vite scripts/styles to run locally
-  crossOriginEmbedderPolicy: false  // Disable COEP to allow dynamic media elements
+  contentSecurityPolicy: process.env.NODE_ENV === "production" ? undefined : false,
+  crossOriginEmbedderPolicy: false,
+  hsts: {
+    maxAge: 31536000,
+    includeSubDomains: true,
+    preload: true
+  },
+  referrerPolicy: { policy: "strict-origin-when-cross-origin" },
+  xContentTypeOptions: true,
+  xFrameOptions: { action: "deny" },
+  xXssProtection: true,
 }));
 app.use(cors({
   origin: true,

@@ -2,6 +2,7 @@ import express from "express";
 import { Type } from "@google/genai";
 import { z } from "zod";
 import { authenticateToken } from "../middleware/auth";
+import { runCelebrationAgent } from "../services/geminiService";
 import { sanitizeInput, checkPromptSafety } from "../services/safetyService";
 import { 
   getDB, 
@@ -36,7 +37,7 @@ router.post("/api/v1/tasks/intake", authenticateToken, async (req: any, res: any
   const schema = z.object({ text: z.string().min(1, "No description provided to intake co-pilot") });
   const validated = schema.safeParse(req.body);
   if (!validated.success) {
-    return res.status(400).json({ error: validated.error.errors[0].message });
+    return res.status(400).json({ error: validated.error.issues[0].message });
   }
 
   let { text } = validated.data;
@@ -263,7 +264,7 @@ router.post("/api/agent/intake", async (req, res) => {
   const schema = z.object({ text: z.string().min(1, "Text is required") });
   const validated = schema.safeParse(req.body);
   if (!validated.success) {
-    return res.status(400).json({ error: validated.error.errors[0].message });
+    return res.status(400).json({ error: validated.error.issues[0].message });
   }
 
   let { text } = validated.data;
@@ -339,7 +340,7 @@ router.post("/api/agent/generate-plan", async (req, res) => {
   });
   const validated = schema.safeParse(req.body);
   if (!validated.success) {
-    return res.status(400).json({ error: validated.error.errors[0].message });
+    return res.status(400).json({ error: validated.error.issues[0].message });
   }
 
   let { title, deadline, description, complexity } = validated.data;
@@ -1593,7 +1594,7 @@ router.post("/api/agent/triage-dump", authenticateToken, async (req: any, res) =
   const schema = z.object({ brainDump: z.string().min(1, "Brain dump is required") });
   const validated = schema.safeParse(req.body);
   if (!validated.success) {
-    return res.status(400).json({ error: validated.error.errors[0].message });
+    return res.status(400).json({ error: validated.error.issues[0].message });
   }
 
   let { brainDump } = validated.data;
@@ -1736,7 +1737,7 @@ router.post("/api/agent/orchestrate", authenticateToken, async (req: any, res) =
   const schema = z.object({ prompt: z.string().min(1, "Prompt is required") });
   const validated = schema.safeParse(req.body);
   if (!validated.success) {
-    return res.status(400).json({ error: validated.error.errors[0].message });
+    return res.status(400).json({ error: validated.error.issues[0].message });
   }
 
   let { prompt } = validated.data;

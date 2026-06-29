@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Cpu, ShieldAlert, Sparkles, Terminal, Zap, FileEdit, LayoutDashboard, LogOut, Flame, UploadCloud, Award, Bell, Trash2, CheckSquare as CheckSquareIcon, MessageSquare, AlertTriangle, BookOpen, Presentation, Star, Bookmark } from "lucide-react";
 import { Routes, Route, useNavigate, useLocation, Navigate } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
@@ -46,6 +46,19 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<"battle" | "intake" | "braindump" | "draft" | "logs" | "agents" | "why-crunch" | "keep">("battle");
   const [rescueTaskId, setRescueTaskId] = useState<string | null>(null);
   const [showNotifications, setShowNotifications] = useState(false);
+  const notifDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Click-outside handler for notification dropdown
+  useEffect(() => {
+    if (!showNotifications) return;
+    const handleClickOutside = (event: MouseEvent) => {
+      if (notifDropdownRef.current && !notifDropdownRef.current.contains(event.target as Node)) {
+        setShowNotifications(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [showNotifications]);
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -332,7 +345,7 @@ export default function App() {
 
         <div className="flex items-center gap-4">
           {/* Simple Notification badge */}
-          <div className="relative">
+          <div className="relative" ref={notifDropdownRef}>
             <button
               onClick={() => setShowNotifications(!showNotifications)}
               className="relative p-1.5 text-gray-400 hover:text-gray-900 transition-colors cursor-pointer"

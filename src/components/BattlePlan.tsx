@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { CheckCircle2, Circle, Clock, ChevronDown, ChevronUp, AlertTriangle, RefreshCw, Bell, Trash2 } from "lucide-react";
+import { CheckCircle2, Circle, Clock, ChevronDown, ChevronUp, AlertTriangle, RefreshCw, Bell, Trash2, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "motion/react";
 import { Task } from "../types";
@@ -33,6 +33,9 @@ export default function BattlePlan({
     return stored ? JSON.parse(stored) : {};
   });
 
+  // Toast notification for reminders (replaces blocking alert())
+  const [toast, setToast] = useState<{ title: string; message: string; visible: boolean } | null>(null);
+
   // Request browser notification permission
   const requestNotificationPermission = () => {
     if ("Notification" in window && Notification.permission === "default") {
@@ -44,7 +47,7 @@ export default function BattlePlan({
   useEffect(() => {
     const activeTimers: number[] = [];
     
-    Object.entries(reminders).forEach(([taskId, timeStr]) => {
+    Object.entries(reminders).forEach(([taskId, timeStr]: [string, string]) => {
       const task = tasks.find(t => t.id === taskId);
       if (!task || task.status === "Completed") return;
       
@@ -59,7 +62,13 @@ export default function BattlePlan({
               icon: "/favicon.ico"
             });
           }
-          alert(`⏰ REMINDER: It is time for ${task.title}! \n\nTarget Action: ${task.starterTask || "Open work files and complete milestones."}`);
+          // Replaced blocking alert() with non-blocking toast notification
+          setToast({
+            title: `⏰ REMINDER: ${task.title}`,
+            message: task.starterTask || "Open work files and complete milestones.",
+            visible: true
+          });
+          setTimeout(() => setToast(null), 6000);
           
           setReminders(prev => {
             const updated = { ...prev };
@@ -80,9 +89,9 @@ export default function BattlePlan({
   const updateTask = useTaskStore((state) => state.updateTask);
   const deleteTask = useTaskStore((state) => state.deleteTask);
 
-  const getHHMM = (isoString: string) => {
+  const getHHMM = (isoString: unknown) => {
     try {
-      const d = new Date(isoString);
+      const d = new Date(String(isoString));
       const hh = String(d.getHours()).padStart(2, "0");
       const mm = String(d.getMinutes()).padStart(2, "0");
       return `${hh}:${mm}`;
@@ -91,9 +100,9 @@ export default function BattlePlan({
     }
   };
 
-  const getYYYYMMDD = (isoString: string) => {
+  const getYYYYMMDD = (isoString: unknown) => {
     try {
-      const d = new Date(isoString);
+      const d = new Date(String(isoString));
       const yyyy = d.getFullYear();
       const mm = String(d.getMonth() + 1).padStart(2, "0");
       const dd = String(d.getDate()).padStart(2, "0");
@@ -197,6 +206,7 @@ export default function BattlePlan({
   };
 
   return (
+    <>
     <div className="space-y-6" id="battle-plan-container">
       
       {/* 1. Active Tasks Section */}
@@ -565,5 +575,32 @@ export default function BattlePlan({
       )}
 
     </div>
+
+      {/* Toast Notification — replaces blocking alert() */}
+      <AnimatePresence>
+        {toast && toast.visible && (
+          <motion.div
+            initial={{ opacity: 0, y: 50, x: "-50%" }}
+            animate={{ opacity: 1, y: 0, x: "-50%" }}
+            exit={{ opacity: 0, y: 20, x: "-50%" }}
+            className="fixed bottom-6 left-1/2 z-50 bg-gray-900 text-white px-5 py-3.5 rounded-xl shadow-2xl max-w-sm w-full border border-gray-700"
+          >
+            <div className="flex items-start gap-3">
+              <Bell className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <h4 className="text-sm font-semibold leading-tight">{toast.title}</h4>
+                <p className="text-xs text-gray-300 leading-relaxed">{toast.message}</p>
+              </div>
+              <button
+                onClick={() => setToast(null)}
+                className="ml-auto text-gray-400 hover:text-white shrink-0"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
   );
 }

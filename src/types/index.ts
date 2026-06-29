@@ -41,6 +41,11 @@ export interface Task {
   submissionRequirements?: string;
   xpGained?: number;
   encouragementMessage?: string;
+  color?: string;
+  isRecurring?: boolean;
+  recurrence?: string;
+  createdAt?: string;
+  ownerId?: string;
 }
 
 export interface MicroTask {
