@@ -1,0 +1,92 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@300;400;500;600;700&family=Fira+Code:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Space Grotesk", sans-serif;
+  --font-mono: "Fira Code", ui-monospace, SFMono-Regular, monospace;
+}
+
+@layer utilities {
+  .glass-panel {
+    background: rgba(8, 12, 28, 0.65);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+  }
+  .glass-panel-heavy {
+    background: rgba(3, 7, 20, 0.85);
+    backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+  }
+  .hud-glow-rose {
+    box-shadow: 0 0 20px rgba(244, 63, 94, 0.15), inset 0 0 12px rgba(244, 63, 94, 0.05);
+  }
+  .hud-glow-emerald {
+    box-shadow: 0 0 20px rgba(16, 185, 129, 0.15), inset 0 0 12px rgba(16, 185, 129, 0.05);
+  }
+  .hud-glow-amber {
+    box-shadow: 0 0 20px rgba(245, 158, 11, 0.15), inset 0 0 12px rgba(245, 158, 11, 0.05);
+  }
+  .hud-border-rose {
+    border-color: rgba(244, 63, 94, 0.35);
+  }
+  .hud-border-emerald {
+    border-color: rgba(16, 185, 129, 0.35);
+  }
+  .animate-radar {
+    animation: radar-spin 8s linear infinite;
+  }
+  .animate-hud-pulse {
+    animation: hud-breathing 4s ease-in-out infinite;
+  }
+  .glow-text-rose {
+    text-shadow: 0 0 8px rgba(244, 63, 94, 0.5);
+  }
+  .glow-text-emerald {
+    text-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+  }
+  .glow-text-amber {
+    text-shadow: 0 0 8px rgba(245, 158, 11, 0.5);
+  }
+}
+
+@keyframes radar-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes hud-breathing {
+  0%, 100% {
+    opacity: 0.95;
+    box-shadow: 0 0 20px rgba(244, 63, 94, 0.12);
+  }
+  50% {
+    opacity: 0.7;
+    box-shadow: 0 0 35px rgba(244, 63, 94, 0.28);
+  }
+}
+
+/* Custom scrollbar styling for technical feel */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(3, 7, 20, 0.6);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(244, 63, 94, 0.25);
+  border-radius: 99px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(244, 63, 94, 0.45);
+}
+
+body {
+  background-color: #FAFAFA;
+  color: #111827;
+  overflow-x: hidden;
+}

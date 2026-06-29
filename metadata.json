@@ -1,0 +1,6 @@
+{
+  "name": "CRUNCH",
+  "description": "AI Rescue Agent for Deadlines",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

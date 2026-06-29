@@ -1,0 +1,231 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile document",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "description": "Unique user ID from Firebase Auth"
+        },
+        "email": {
+          "type": "string",
+          "description": "User email address"
+        },
+        "fullName": {
+          "type": "string",
+          "description": "User full name"
+        },
+        "avatarUrl": {
+          "type": "string",
+          "description": "User avatar URL"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Profile creation timestamp"
+        }
+      },
+      "required": ["uid", "email"]
+    },
+    "Task": {
+      "title": "Task",
+      "description": "A rescue task with deadlines and subtasks",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Task UUID"
+        },
+        "title": {
+          "type": "string",
+          "description": "Task title"
+        },
+        "deadline": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Task deadline timestamp"
+        },
+        "complexity": {
+          "type": "string",
+          "enum": ["Low", "Medium", "High"],
+          "description": "Task complexity level"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["Pending", "In Progress", "Completed"],
+          "description": "Task completion status"
+        },
+        "urgencyScore": {
+          "type": "integer",
+          "description": "Calculated score from 1 to 100"
+        },
+        "description": {
+          "type": "string",
+          "description": "Task description"
+        },
+        "starterTask": {
+          "type": "string",
+          "description": "First starter task description"
+        },
+        "subtasks": {
+          "type": "array",
+          "description": "List of subtasks"
+        },
+        "calendarSchedule": {
+          "type": "array",
+          "description": "Recommended scheduling blocks"
+        },
+        "paceState": {
+          "type": "string",
+          "enum": ["On Track", "At Risk", "Critical", "Impossible"],
+          "description": "Pace status based on progress"
+        },
+        "isRescueActive": {
+          "type": "boolean",
+          "description": "Whether rescue mode is active"
+        },
+        "documentExtractedText": {
+          "type": "string",
+          "description": "Extracted text from uploaded documents"
+        },
+        "ownerId": {
+          "type": "string",
+          "description": "Owner user UID"
+        },
+        "wordCount": {
+          "type": "integer",
+          "description": "Estimated word count for assignments"
+        },
+        "estimatedHours": {
+          "type": "integer",
+          "description": "Estimated hours needed to complete"
+        },
+        "submissionRequirements": {
+          "type": "string",
+          "description": "Extracted submission criteria"
+        },
+        "xpGained": {
+          "type": "integer",
+          "description": "XP gained for completing task"
+        },
+        "encouragementMessage": {
+          "type": "string",
+          "description": "AI agent pep-talk message"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["id", "title", "deadline", "complexity", "status", "urgencyScore", "description", "starterTask", "paceState", "ownerId"]
+    },
+    "MicroTask": {
+      "title": "MicroTask",
+      "description": "Granular action item associated with a task",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "taskId": { "type": "string" },
+        "title": { "type": "string" },
+        "durationMin": { "type": "integer" },
+        "completed": { "type": "boolean" },
+        "implementationIntention": { "type": "string" },
+        "sequenceOrder": { "type": "integer" }
+      },
+      "required": ["id", "taskId", "title", "durationMin", "completed", "sequenceOrder"]
+    },
+    "AgentLog": {
+      "title": "AgentLog",
+      "description": "A trace log of internal agent reasoning and actions",
+      "type": "object",
+      "properties": {
+        "timestamp": { "type": "string", "format": "date-time" },
+        "agent": { "type": "string" },
+        "type": { "type": "string", "enum": ["REASON", "ACT", "OBSERVE"] },
+        "message": { "type": "string" }
+      },
+      "required": ["timestamp", "agent", "type", "message"]
+    },
+    "UserMemory": {
+      "title": "UserMemory",
+      "description": "Dynamic user profile detailing work habits and procrastination patterns",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "preferredWorkHours": { "type": "string" },
+        "averageCompletionSpeed": { "type": "string" },
+        "commonProcrastinationPatterns": { "type": "array" },
+        "mostDelayedTaskTypes": { "type": "array" },
+        "previousRescueCount": { "type": "integer" },
+        "preferredRescueStyle": { "type": "string" },
+        "strengths": { "type": "array" },
+        "weaknesses": { "type": "array" },
+        "mostCommonFailurePoint": { "type": "string" }
+      },
+      "required": ["uid"]
+    },
+    "Reflection": {
+      "title": "Reflection",
+      "description": "Post-deadline self-evaluation reflection logs",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "taskId": { "type": "string" },
+        "taskTitle": { "type": "string" },
+        "date": { "type": "string" },
+        "whatWorked": { "type": "string" },
+        "whatFailed": { "type": "string" },
+        "whyUserGotStuck": { "type": "string" },
+        "whatShouldChangeNextTime": { "type": "string" }
+      },
+      "required": ["id", "taskId", "taskTitle", "date", "whatWorked", "whatFailed", "whyUserGotStuck", "whatShouldChangeNextTime"]
+    },
+    "RescueHistory": {
+      "title": "RescueHistory",
+      "description": "Historical log of rescues and outcomes",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "taskTitle": { "type": "string" },
+        "date": { "type": "string" },
+        "initialRescueScore": { "type": "integer" },
+        "finalRescueScore": { "type": "integer" },
+        "status": { "type": "string" },
+        "draftsGeneratedCount": { "type": "integer" }
+      },
+      "required": ["id", "taskTitle", "date", "initialRescueScore", "finalRescueScore", "status", "draftsGeneratedCount"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": "#/entities/User",
+      "description": "User documents containing basic profile information"
+    },
+    "users/{userId}/tasks/{taskId}": {
+      "schema": "#/entities/Task",
+      "description": "A user's task and rescue parameters"
+    },
+    "users/{userId}/tasks/{taskId}/microtasks/{microtaskId}": {
+      "schema": "#/entities/MicroTask",
+      "description": "Granular atomic subtask items linked to a task"
+    },
+    "users/{userId}/userMemory/profile": {
+      "schema": "#/entities/UserMemory",
+      "description": "Habit profile and cognitive traits of the user"
+    },
+    "users/{userId}/reflections/{reflectionId}": {
+      "schema": "#/entities/Reflection",
+      "description": "Post-mortem reviews written by the user"
+    },
+    "users/{userId}/rescueHistory/{historyId}": {
+      "schema": "#/entities/RescueHistory",
+      "description": "Rescue metrics logs for completing deadlined assignments"
+    },
+    "agentLogs/{logId}": {
+      "schema": "#/entities/AgentLog",
+      "description": "Global reasoning and step logs for the AI agents"
+    }
+  }
+}

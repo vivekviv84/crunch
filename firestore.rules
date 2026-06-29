@@ -1,0 +1,33 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    match /users/{userId} {
+      allow read, write: if (request.auth != null && request.auth.uid == userId) || userId.matches("^demo-.*");
+    }
+    
+    match /tasks/{taskId} {
+      allow read, update, delete: if (request.auth != null && resource.data.ownerId == request.auth.uid) || resource.data.ownerId.matches("^demo-.*");
+      allow create: if (request.auth != null && request.resource.data.ownerId == request.auth.uid) || request.resource.data.ownerId.matches("^demo-.*");
+    }
+    
+    match /agentLogs/{logId} {
+      allow read, delete: if (request.auth != null && resource.data.ownerId == request.auth.uid) || resource.data.ownerId.matches("^demo-.*");
+      allow create: if (request.auth != null && request.resource.data.ownerId == request.auth.uid) || request.resource.data.ownerId.matches("^demo-.*");
+    }
+    
+    match /userMemory/{userId} {
+      allow read, write: if (request.auth != null && request.auth.uid == userId) || userId.matches("^demo-.*");
+    }
+    
+    match /reflections/{reflectionId} {
+      allow read, update, delete: if (request.auth != null && resource.data.ownerId == request.auth.uid) || resource.data.ownerId.matches("^demo-.*");
+      allow create: if (request.auth != null && request.resource.data.ownerId == request.auth.uid) || request.resource.data.ownerId.matches("^demo-.*");
+    }
+    
+    match /keepNotes/{noteId} {
+      allow read, update, delete: if (request.auth != null && resource.data.ownerId == request.auth.uid) || resource.data.ownerId.matches("^demo-.*");
+      allow create: if (request.auth != null && request.resource.data.ownerId == request.auth.uid) || request.resource.data.ownerId.matches("^demo-.*");
+    }
+  }
+}
