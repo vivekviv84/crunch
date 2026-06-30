@@ -105,19 +105,57 @@ function extractRetryAfterMs(err: unknown): number | undefined {
   const e = err as {
     headers?: Record<string, string>;
     retryAfter?: number;
-    errorDetails?: Array<{ retryDelay?: string }>;
+    errorDetails?: Array<{
+      retryDelay?: string | { seconds?: string | number; nanos?: number };
+    }>;
+    details?: Array<{
+      retryDelay?: string | { seconds?: string | number; nanos?: number };
+    }>;
+    cause?: {
+      headers?: Record<string, string>;
+    };
   };
+
+  // Check response headers directly on error
   const header = e.headers?.["retry-after"];
   if (header) {
-    const seconds = parseInt(header, 10);
+    const seconds = parseInt(String(header), 10);
     if (!Number.isNaN(seconds)) return seconds * 1000;
   }
+
+  // Check cause headers (wrapped fetch errors)
+  const causeHeader = e.cause?.headers?.["retry-after"];
+  if (causeHeader) {
+    const seconds = parseInt(String(causeHeader), 10);
+    if (!Number.isNaN(seconds)) return seconds * 1000;
+  }
+
   if (typeof e.retryAfter === "number") return e.retryAfter * 1000;
-  const delay = e.errorDetails?.[0]?.retryDelay;
-  if (delay?.endsWith("s")) {
-    const seconds = parseFloat(delay);
+
+  // Check errorDetails array (Google GenAI SDK v0.8+)
+  const detail = e.errorDetails?.[0] ?? e.details?.[0];
+  if (detail?.retryDelay) {
+    const delay = detail.retryDelay;
+    if (typeof delay === "string") {
+      if (delay.endsWith("s")) {
+        const seconds = parseFloat(delay);
+        if (!Number.isNaN(seconds)) return seconds * 1000;
+      }
+    } else if (typeof delay === "object" && delay !== null) {
+      const seconds = parseFloat(String(delay.seconds ?? "0"));
+      const nanos = Number(delay.nanos ?? 0);
+      if (!Number.isNaN(seconds)) return seconds * 1000 + nanos / 1e6;
+    }
+  }
+
+  // Fallback: parse retry hints from error message
+  const msg = (err as { message?: string }).message ?? "";
+  const retryMatch = msg.match(/retry after (\d+(?:\.\d+)?)\s*s/i);
+  if (retryMatch) {
+    const seconds = parseFloat(retryMatch[1]);
     if (!Number.isNaN(seconds)) return seconds * 1000;
   }
+
   return undefined;
 }
 
@@ -129,6 +167,8 @@ function sleep(ms: number): Promise<void> {
  * Core Gemini call with circuit breaker and selective retry.
  * Retries only 429 (honoring Retry-After), 503, and transient network errors.
  * Never retries 400, 401, 403, 404. Aborts retries when circuit opens.
+ * Records every failure to the circuit breaker immediately so the circuit
+ * opens after the threshold is reached — not after exhausting all retries.
  */
 async function callGeminiCore<T>(
   telemetry: GeminiTelemetry,
@@ -137,7 +177,7 @@ async function callGeminiCore<T>(
 ): Promise<T> {
   const breaker = getGeminiCircuitBreaker();
 
-  if (breaker.isOpen()) {
+  if (!breaker.canExecute()) {
     throw new CircuitOpenError();
   }
 
@@ -160,7 +200,7 @@ async function callGeminiCore<T>(
     if (signal?.aborted) {
       throw new DOMException("Gemini request aborted", "AbortError");
     }
-    if (breaker.isOpen()) {
+    if (!breaker.canExecute()) {
       throw new CircuitOpenError();
     }
 
@@ -188,7 +228,6 @@ async function callGeminiCore<T>(
       const statusCode = extractStatusCode(err);
       const quota = isQuotaError(err);
       const network = isNetworkError(err);
-      const retryable = quota || statusCode === 503 || network;
       const clientErrorNoRetry = statusCode >= 400 && statusCode < 500 && statusCode !== 429;
 
       logOnce(
@@ -201,10 +240,28 @@ async function callGeminiCore<T>(
         throw err;
       }
 
-      if (retryable && attempt < maxRetries && !breaker.isOpen()) {
+      // Record every retryable failure immediately so the circuit opens
+      // as soon as the threshold is reached, not after all retries finish.
+      if (quota || statusCode === 503) {
+        breaker.recordFailure(quota);
+      }
+
+      // After recording, check if the circuit just opened — if so, stop immediately.
+      if (!breaker.canExecute()) {
+        throw new CircuitOpenError();
+      }
+
+      const retryable = quota || statusCode === 503 || network;
+      if (retryable && attempt < maxRetries) {
         const retryAfterMs = quota ? extractRetryAfterMs(err) : undefined;
         const jitter = delay * (0.5 + Math.random());
-        const waitMs = retryAfterMs ? Math.max(jitter, retryAfterMs) : jitter;
+        // Honor Google's RetryInfo.retryDelay; if absent, use a longer default
+        // for quota errors (5s) to avoid hammering the exhausted quota.
+        const waitMs = retryAfterMs
+          ? Math.max(jitter, retryAfterMs)
+          : quota
+            ? Math.max(jitter, 5000)
+            : jitter;
 
         logOnce(
           `retry:${telemetry.route}`,
@@ -215,10 +272,6 @@ async function callGeminiCore<T>(
         await sleep(waitMs);
         delay *= 2;
         continue;
-      }
-
-      if (quota || statusCode === 503) {
-        breaker.recordFailure(quota);
       }
 
       logOnce(

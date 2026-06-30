@@ -58,23 +58,27 @@ export class CircuitBreaker {
   }
 
   isOpen(): boolean {
-    if (this.state === "OPEN") {
-      const elapsed = Date.now() - (this.lastFailureTime || 0);
-      if (elapsed >= this.config.recoveryTimeoutMs) {
-        this.state = "HALF_OPEN";
-        this.halfOpenCalls = 0;
-        this.failures = 0;
-        this.successes = 0;
-        logger.info(
-          `[CircuitBreaker:${this.name}] Transitioned OPEN -> HALF_OPEN after ${elapsed}ms`
-        );
-      }
-    }
     return this.state === "OPEN";
   }
 
+  private checkRecovery(): void {
+    if (this.state !== "OPEN") return;
+    const elapsed = Date.now() - (this.lastFailureTime || 0);
+    if (elapsed >= this.config.recoveryTimeoutMs) {
+      this.state = "HALF_OPEN";
+      this.halfOpenCalls = 0;
+      this.failures = 0;
+      this.successes = 0;
+      logger.info(
+        `[CircuitBreaker:${this.name}] Transitioned OPEN -> HALF_OPEN after ${elapsed}ms`
+      );
+    }
+  }
+
   canExecute(): boolean {
-    if (this.isOpen()) return false;
+    this.checkRecovery();
+
+    if (this.state === "OPEN") return false;
 
     if (this.state === "HALF_OPEN") {
       if (this.halfOpenCalls >= this.config.halfOpenMaxCalls) {
@@ -114,12 +118,18 @@ export class CircuitBreaker {
       return;
     }
 
+    if (isQuotaError) {
+      this.state = "OPEN";
+      logger.warn(
+        `[CircuitBreaker:${this.name}] OPEN immediately due to quota exhaustion (RESOURCE_EXHAUSTED/429). Will retry in ${this.config.recoveryTimeoutMs}ms`
+      );
+      return;
+    }
+
     if (this.state === "CLOSED" && this.failures >= this.config.failureThreshold) {
       this.state = "OPEN";
       logger.warn(
-        `[CircuitBreaker:${this.name}] CLOSED -> OPEN after ${this.failures} consecutive failures. ${
-          isQuotaError ? "Quota exceeded." : ""
-        } Will retry in ${this.config.recoveryTimeoutMs}ms`
+        `[CircuitBreaker:${this.name}] CLOSED -> OPEN after ${this.failures} consecutive failures.`
       );
     }
   }

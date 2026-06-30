@@ -24,9 +24,16 @@ export default function MorningBriefPanel({ tasks, onStartWorking }: MorningBrie
 
   const taskKey = useMemo(() => buildMorningBriefKey(tasks), [tasks]);
 
+  // Keep a mutable ref to the latest tasks so loadBrief can read them
+  // without being a dependency of the useCallback (which would recreate
+  // the function on every parent re-render and trigger duplicate useEffect runs).
+  const tasksRef = useRef(tasks);
+  tasksRef.current = tasks;
+
   const loadBrief = useCallback(
     async (force = false) => {
-      if (tasks.length === 0) {
+      const currentTasks = tasksRef.current;
+      if (currentTasks.length === 0) {
         setBrief(EMPTY_BRIEF);
         setLoading(false);
         setError(null);
@@ -37,7 +44,7 @@ export default function MorningBriefPanel({ tasks, onStartWorking }: MorningBrie
       setError(null);
 
       try {
-        const data = await fetchMorningBrief(tasks, { force });
+        const data = await fetchMorningBrief(currentTasks, { force });
         if (mountedRef.current) {
           setBrief(data);
         }
@@ -51,7 +58,7 @@ export default function MorningBriefPanel({ tasks, onStartWorking }: MorningBrie
         }
       }
     },
-    [tasks]
+    []
   );
 
   useEffect(() => {
@@ -61,7 +68,7 @@ export default function MorningBriefPanel({ tasks, onStartWorking }: MorningBrie
       mountedRef.current = false;
       cancelMorningBrief();
     };
-  }, [taskKey, loadBrief]);
+  }, [taskKey]);
 
   const handleRefresh = useCallback(() => {
     loadBrief(true);

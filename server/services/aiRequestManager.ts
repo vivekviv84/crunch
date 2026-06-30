@@ -140,7 +140,7 @@ export class AiRequestManager {
       this.pending.delete(key);
     }
 
-    if (this.circuitBreaker.isOpen()) {
+    if (!this.circuitBreaker.canExecute()) {
       if (fallback !== undefined) {
         return fallback;
       }

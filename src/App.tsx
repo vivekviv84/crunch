@@ -26,22 +26,31 @@ import { useSessionStore } from "./store/useSessionStore";
 import { useNotificationStore } from "./store/useNotificationStore";
 
 export default function App() {
-  const { isAuthenticated, user, authInitialized, initializeAuth, logout } = useUserStore();
-  const { 
-    tasks, 
-    logs, 
-    selectedTaskId, 
-    fetchTasks, 
-    fetchLogs, 
-    setSelectedTaskId, 
-    createTask, 
-    updateTask, 
-    clearLogs, 
-    regeneratePlan 
-  } = useTaskStore();
+  const isAuthenticated = useUserStore((state) => state.isAuthenticated);
+  const user = useUserStore((state) => state.user);
+  const authInitialized = useUserStore((state) => state.authInitialized);
+  const initializeAuth = useUserStore((state) => state.initializeAuth);
+  const logout = useUserStore((state) => state.logout);
 
-  const { startFocusSession, tickTimer, timerActive } = useSessionStore();
-  const { notifications, unreadCount, addNotification, markAsRead, markAllAsRead, clearNotifications } = useNotificationStore();
+  const tasks = useTaskStore((state) => state.tasks);
+  const selectedTaskId = useTaskStore((state) => state.selectedTaskId);
+  const fetchTasks = useTaskStore((state) => state.fetchTasks);
+  const fetchLogs = useTaskStore((state) => state.fetchLogs);
+  const setSelectedTaskId = useTaskStore((state) => state.setSelectedTaskId);
+  const createTask = useTaskStore((state) => state.createTask);
+  const updateTask = useTaskStore((state) => state.updateTask);
+  const clearLogs = useTaskStore((state) => state.clearLogs);
+  const regeneratePlan = useTaskStore((state) => state.regeneratePlan);
+
+  const startFocusSession = useSessionStore((state) => state.startFocusSession);
+  const tickTimer = useSessionStore((state) => state.tickTimer);
+  const timerActive = useSessionStore((state) => state.timerActive);
+
+  const notifications = useNotificationStore((state) => state.notifications);
+  const unreadCount = useNotificationStore((state) => state.unreadCount);
+  const markAsRead = useNotificationStore((state) => state.markAsRead);
+  const markAllAsRead = useNotificationStore((state) => state.markAllAsRead);
+  const clearNotifications = useNotificationStore((state) => state.clearNotifications);
 
   const [activeTab, setActiveTab] = useState<"battle" | "intake" | "braindump" | "draft" | "logs" | "agents" | "why-crunch" | "keep">("battle");
   const [rescueTaskId, setRescueTaskId] = useState<string | null>(null);
