@@ -104,12 +104,18 @@ export async function dbUpsertUser(user: { id: string; email: string; fullName: 
 }
 
 // Task Operations
-export async function dbGetTasks(ownerId: string) {
+export async function dbGetTasks(ownerId: string, limit?: number, offset?: number) {
   if (isFirebaseOnline && dbInstance) {
     try {
-      const snapshot = await dbInstance.collection("tasks")
-        .where("ownerId", "in", [ownerId, "usr-default"])
-        .get();
+      let query = dbInstance.collection("tasks")
+        .where("ownerId", "in", [ownerId, "usr-default"]);
+      if (limit && limit > 0) {
+        query = query.limit(limit);
+      }
+      if (offset && offset > 0) {
+        query = query.offset(offset);
+      }
+      const snapshot = await query.get();
       
       const tasks: any[] = [];
       snapshot.forEach((docSnap: any) => {
@@ -122,7 +128,10 @@ export async function dbGetTasks(ownerId: string) {
   }
 
   // Fallback to local store
-  return Array.from(localDb.tasks.values()).filter(t => t.ownerId === ownerId || t.ownerId === "usr-default");
+  const all = Array.from(localDb.tasks.values()).filter(t => t.ownerId === ownerId || t.ownerId === "usr-default");
+  const start = offset || 0;
+  const end = limit && limit > 0 ? start + limit : undefined;
+  return end !== undefined ? all.slice(start, end) : all.slice(start);
 }
 
 export async function dbGetTaskById(id: string, ownerId: string) {
@@ -193,12 +202,18 @@ export async function dbDeleteTask(id: string, ownerId: string) {
 }
 
 // Keep Notes Operations
-export async function dbGetKeepNotes(ownerId: string) {
+export async function dbGetKeepNotes(ownerId: string, limit?: number, offset?: number) {
   if (isFirebaseOnline && dbInstance) {
     try {
-      const snapshot = await dbInstance.collection("keepNotes")
-        .where("ownerId", "in", [ownerId, "usr-default"])
-        .get();
+      let query = dbInstance.collection("keepNotes")
+        .where("ownerId", "in", [ownerId, "usr-default"]);
+      if (limit && limit > 0) {
+        query = query.limit(limit);
+      }
+      if (offset && offset > 0) {
+        query = query.offset(offset);
+      }
+      const snapshot = await query.get();
       
       const notes: any[] = [];
       snapshot.forEach((docSnap: any) => {
@@ -211,7 +226,10 @@ export async function dbGetKeepNotes(ownerId: string) {
   }
 
   // Fallback to local store
-  return Array.from(localDb.keepNotes.values()).filter(n => n.ownerId === ownerId || n.ownerId === "usr-default");
+  const all = Array.from(localDb.keepNotes.values()).filter(n => n.ownerId === ownerId || n.ownerId === "usr-default");
+  const start = offset || 0;
+  const end = limit && limit > 0 ? start + limit : undefined;
+  return end !== undefined ? all.slice(start, end) : all.slice(start);
 }
 
 export async function dbSaveKeepNote(note: any) {
@@ -283,14 +301,20 @@ export async function addAgentLog(agent: string, type: "REASON" | "ACT" | "OBSER
   return logEntry;
 }
 
-export async function dbGetAgentLogs(ownerId: string) {
+export async function dbGetAgentLogs(ownerId: string, limitVal?: number, offset?: number) {
+  const effectiveLimit = Math.min(Math.max(limitVal || 100, 1), 500);
   if (isFirebaseOnline && dbInstance) {
     try {
-      const snapshot = await dbInstance.collection("agentLogs")
+      let query = dbInstance.collection("agentLogs")
         .where("ownerId", "==", ownerId)
-        .orderBy("timestamp", "desc")
-        .limit(100)
-        .get();
+        .orderBy("timestamp", "desc");
+      if (effectiveLimit > 0) {
+        query = query.limit(effectiveLimit);
+      }
+      if (offset && offset > 0) {
+        query = query.offset(offset);
+      }
+      const snapshot = await query.get();
       
       const logs: any[] = [];
       snapshot.forEach((docSnap: any) => {
@@ -304,7 +328,9 @@ export async function dbGetAgentLogs(ownerId: string) {
 
   // Fallback to local store
   const logs = localDb.agentLogs.get(ownerId) || [];
-  return [...logs].reverse().slice(0, 100);
+  const start = offset || 0;
+  const end = effectiveLimit > 0 ? start + effectiveLimit : undefined;
+  return [...logs].reverse().slice(start, end);
 }
 
 export async function dbClearAgentLogs(ownerId: string) {
@@ -365,13 +391,19 @@ export async function dbUpdateUserMemory(ownerId: string, memoryData: any) {
 }
 
 // Reflections Operations
-export async function dbGetReflections(ownerId: string) {
+export async function dbGetReflections(ownerId: string, limit?: number, offset?: number) {
   if (isFirebaseOnline && dbInstance) {
     try {
-      const snapshot = await dbInstance.collection("reflections")
+      let query = dbInstance.collection("reflections")
         .where("ownerId", "==", ownerId)
-        .orderBy("timestamp", "desc")
-        .get();
+        .orderBy("timestamp", "desc");
+      if (limit && limit > 0) {
+        query = query.limit(limit);
+      }
+      if (offset && offset > 0) {
+        query = query.offset(offset);
+      }
+      const snapshot = await query.get();
       
       const reflections: any[] = [];
       snapshot.forEach((docSnap: any) => {
@@ -384,9 +416,12 @@ export async function dbGetReflections(ownerId: string) {
   }
 
   // Fallback to local store
-  return Array.from(localDb.reflections.values())
+  const all = Array.from(localDb.reflections.values())
     .filter(r => r.ownerId === ownerId)
     .sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+  const start = offset || 0;
+  const end = limit && limit > 0 ? start + limit : undefined;
+  return end !== undefined ? all.slice(start, end) : all.slice(start);
 }
 
 export async function dbSaveReflection(reflection: any) {
@@ -412,13 +447,19 @@ export async function dbSaveReflection(reflection: any) {
 }
 
 // Rescue History Operations
-export async function dbGetRescueHistory(ownerId: string) {
+export async function dbGetRescueHistory(ownerId: string, limit?: number, offset?: number) {
   if (isFirebaseOnline && dbInstance) {
     try {
-      const snapshot = await dbInstance.collection("rescueHistory")
+      let query = dbInstance.collection("rescueHistory")
         .where("ownerId", "==", ownerId)
-        .orderBy("timestamp", "desc")
-        .get();
+        .orderBy("timestamp", "desc");
+      if (limit && limit > 0) {
+        query = query.limit(limit);
+      }
+      if (offset && offset > 0) {
+        query = query.offset(offset);
+      }
+      const snapshot = await query.get();
       
       const history: any[] = [];
       snapshot.forEach((docSnap: any) => {
@@ -431,9 +472,12 @@ export async function dbGetRescueHistory(ownerId: string) {
   }
 
   // Fallback to local store
-  return Array.from(localDb.rescueHistory.values())
+  const all = Array.from(localDb.rescueHistory.values())
     .filter(h => h.ownerId === ownerId)
     .sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+  const start = offset || 0;
+  const end = limit && limit > 0 ? start + limit : undefined;
+  return end !== undefined ? all.slice(start, end) : all.slice(start);
 }
 
 export async function dbSaveRescueHistoryItem(item: any) {

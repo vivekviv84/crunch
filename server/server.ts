@@ -40,6 +40,15 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT ? Number(process.env.PORT) : 3000;
 
+// CORS: restrict to known frontend origins only
+const FRONTEND_URLS = (process.env.FRONTEND_URL || "http://localhost:3000")
+  .split(",")
+  .map((u) => u.trim());
+app.use(cors({
+  origin: FRONTEND_URLS,
+  credentials: true
+}));
+
 // Security Middlewares
 app.use(helmet({
   contentSecurityPolicy: process.env.NODE_ENV === "production" ? undefined : false,
@@ -54,13 +63,10 @@ app.use(helmet({
   xFrameOptions: { action: "deny" },
   xXssProtection: true,
 }));
-app.use(cors({
-  origin: true,
-  credentials: true
-}));
 
-// Enable large JSON payloads (up to 50MB) for file parses/images
-app.use(express.json({ limit: "50mb" }));
+// Reduce default JSON body limit to 5MB. Upload routes that need more (e.g. document
+// parsing) should handle their own body parsing via multer, not express.json().
+app.use(express.json({ limit: "5mb" }));
 
 // Standard logger middleware
 app.use(requestLogger);
@@ -122,6 +128,17 @@ setInterval(() => {
   }
 }, 60000);
 
+// Global error handler — catches anything that slipped through route-level try/catch.
+// Must be registered AFTER all routes and other middleware.
+app.use((err: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  const status = err.status || err.statusCode || 500;
+  const message = process.env.NODE_ENV === "production" && status >= 500
+    ? "Internal server error"
+    : (err.message || "Internal server error");
+  logger.error(`[GlobalError] ${req.method} ${req.url} — ${status}: ${err.message || err}`);
+  res.status(status).json({ success: false, error: message });
+});
+
 async function startServer() {
   if (process.env.NODE_ENV !== "production") {
     logger.info("🚀 Starting development server in Single Page Application (SPA) mode...");
@@ -140,9 +157,24 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
+  const server = app.listen(PORT, "0.0.0.0", () => {
     logger.info(`📡 CRUNCH Server running on port ${PORT}`);
   });
+
+  // Graceful shutdown
+  const gracefulShutdown = (signal: string) => {
+    logger.info(`[Server] Received ${signal}. Shutting down gracefully...`);
+    server.close(() => {
+      logger.info("[Server] HTTP server closed.");
+      process.exit(0);
+    });
+    setTimeout(() => {
+      logger.error("[Server] Forced shutdown after timeout.");
+      process.exit(1);
+    }, 10000);
+  };
+  process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+  process.on("SIGINT", () => gracefulShutdown("SIGINT"));
 }
 
 startServer();

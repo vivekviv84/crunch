@@ -27,8 +27,8 @@ export interface TaskInput {
   recurrence?: string;
 }
 
-export async function getTasks(userId: string) {
-  return await dbGetTasks(userId);
+export async function getTasks(userId: string, limit?: number, offset?: number) {
+  return await dbGetTasks(userId, limit, offset);
 }
 
 export async function getTaskById(taskId: string, userId: string) {

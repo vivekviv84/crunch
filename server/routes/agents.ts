@@ -198,54 +198,8 @@ router.get("/api/logs", authenticateToken, async (req: any, res) => {
     const logs = await dbGetAgentLogs(req.user.id);
     res.json(logs);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, error: err.message || "Internal server error" });
   }
-});
-
-router.get("/api/debug/gemini", (req, res) => {
-  let key = process.env.GEMINI_API_KEY;
-  if (!key) {
-    return res.json({
-      configured: false,
-      reason: "GEMINI_API_KEY is not defined in process.env",
-      length: 0,
-    });
-  }
-  
-  const originalKey = key;
-  key = key.trim().replace(/^['"]|['"]$/g, '').trim();
-  
-  const hasQuotes = originalKey !== key;
-  const length = key.length;
-  const startsWithAIza = key.startsWith("AIza");
-  const startsWithAQ = key.startsWith("AQ.");
-  const prefix = key.substring(0, 4);
-  const suffix = key.length > 4 ? key.substring(key.length - 4) : "";
-  
-  let valid = true;
-  let invalidReason = null;
-  if (key === "" || key === "MY_GEMINI_API_KEY" || key === "undefined" || key === "null") {
-    valid = false;
-    invalidReason = `Holds a placeholder value: "${key}"`;
-  } else if (!startsWithAIza && !startsWithAQ) {
-    if (length < 10) {
-        valid = false;
-        invalidReason = "Unknown key format and too short";
-    } else {
-        invalidReason = "Unknown key format";
-    }
-}
-  
-  res.json({
-    configured: true,
-    valid,
-    length,
-    startsWithAIza,
-    prefix,
-    suffix,
-    hasQuotes,
-    invalidReason,
-  });
 });
 
 router.post("/api/logs/clear", authenticateToken, async (req: any, res) => {
@@ -253,14 +207,14 @@ router.post("/api/logs/clear", authenticateToken, async (req: any, res) => {
     await dbClearAgentLogs(req.user.id);
     res.json({ success: true });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, error: err.message || "Internal server error" });
   }
 });
 
 
 // --- LEGACY AGENT ENDPOINTS ---
 
-router.post("/api/agent/intake", async (req, res) => {
+router.post("/api/agent/intake", authenticateToken, async (req, res) => {
   const schema = z.object({ text: z.string().min(1, "Text is required") });
   const validated = schema.safeParse(req.body);
   if (!validated.success) {
@@ -331,7 +285,7 @@ router.post("/api/agent/intake", async (req, res) => {
   }
 });
 
-router.post("/api/agent/generate-plan", async (req, res) => {
+router.post("/api/agent/generate-plan", authenticateToken, async (req, res) => {
   const schema = z.object({
     title: z.string().min(1, "Title is required"),
     deadline: z.string().optional(),
@@ -416,7 +370,7 @@ router.post("/api/agent/generate-plan", async (req, res) => {
   }
 });
 
-router.post("/api/agent/celebrate", async (req: any, res) => {
+router.post("/api/agent/celebrate", authenticateToken, async (req: any, res) => {
   const { taskTitle, microtaskTitle, xpGained } = req.body;
   try {
     const encouragementMessage = await runCelebrationAgent(taskTitle || "Rescue Operation", microtaskTitle || "Microtask", xpGained || 25);
@@ -426,7 +380,7 @@ router.post("/api/agent/celebrate", async (req: any, res) => {
   }
 });
 
-router.post("/api/agent/brain-dump", async (req, res) => {
+router.post("/api/agent/brain-dump", authenticateToken, async (req, res) => {
   const { dumpText, currentLocalTime } = req.body;
   const ai = getGeminiClient();
   if (!ai) {
@@ -657,7 +611,7 @@ Return a strict JSON response containing prioritizedTasks, conflicts, and a batt
   }
 });
 
-router.get("/api/agent/draft", async (req, res) => {
+router.get("/api/agent/draft", authenticateToken, async (req, res) => {
   const { title, context, format, action, draftText } = req.query;
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
@@ -732,7 +686,7 @@ Additional Context: "${context || ""}"`;
   }
 });
 
-router.post("/api/agent/draft", async (req, res) => {
+router.post("/api/agent/draft", authenticateToken, async (req, res) => {
   const { action, draftText, title } = req.body;
   const ai = getGeminiClient();
   
@@ -796,7 +750,7 @@ function computeMorningBriefFallback(tasks: any[]) {
   };
 }
 
-router.post("/api/agent/morning-brief", async (req, res) => {
+router.post("/api/agent/morning-brief", authenticateToken, async (req, res) => {
   const { tasks } = req.body;
   const ai = getGeminiClient();
 
@@ -889,7 +843,7 @@ Provide a concise, ultra-realistic debriefing in JSON matching this schema:
   res.json(briefData);
 });
 
-router.post("/api/agent/simplify", async (req, res) => {
+router.post("/api/agent/simplify", authenticateToken, async (req, res) => {
   const { title, description } = req.body;
   const ai = getGeminiClient();
   if (!ai) {
@@ -944,12 +898,12 @@ JSON layout must match exactly:
       })
     );
     res.json(JSON.parse(response.text?.trim() || "{}"));
-  } catch (err) {
-    res.json({ error: "Failed to simplify" });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: err.message || "Internal server error" });
   }
 });
 
-router.post("/api/agent/extension-email", async (req, res) => {
+router.post("/api/agent/extension-email", authenticateToken, async (req, res) => {
   const { title, deadline, reason, recipient, mode } = req.body;
   const ai = getGeminiClient();
   if (!ai) {
@@ -999,13 +953,13 @@ Output JSON: { "emailSubject": "...", "emailBody": "..." }`;
 });
 
 // Real-time emergency advisor chat (SSE Streaming)
-router.get("/api/agent/rescue-chat", async (req, res) => {
+router.get("/api/agent/rescue-chat", authenticateToken, async (req: any, res) => {
   const { message, taskId } = req.query;
   res.setHeader("Content-Type", "text/event-stream");
   res.setHeader("Cache-Control", "no-cache");
   res.setHeader("Connection", "keep-alive");
 
-  const ownerId = "usr-default";
+  const ownerId = req.user.id;
   const task = taskId ? await dbGetTaskById(String(taskId), ownerId) : null;
   const taskTitle = task ? task.title : "Emergency Operation";
   const taskDeadline = task ? task.deadline : new Date().toISOString();
@@ -1075,7 +1029,7 @@ Generate emergency copilot advice. Output immediate action, a code sample, or an
 });
 
 // Document parsing legacy compatibility
-router.post("/api/agent/parse-document", async (req, res) => {
+router.post("/api/agent/parse-document", authenticateToken, async (req, res) => {
   const { docText } = req.body;
   res.json({
     extractedText: docText || "",
@@ -1095,7 +1049,7 @@ function formatRelativeTime(hoursOffset: number): string {
 }
 
 // Unified Intelligence Dashboard API
-router.post("/api/agent/intelligence-dashboard", async (req: any, res) => {
+router.post("/api/agent/intelligence-dashboard", authenticateToken, async (req: any, res) => {
   const { 
     taskId, 
     hoursRemainingOverride, 
@@ -1376,7 +1330,7 @@ router.get("/api/agent/user-memory", authenticateToken, async (req: any, res) =>
     const memory = await dbGetUserMemory(req.user.id);
     res.json(memory);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, error: err.message || "Internal server error" });
   }
 });
 
@@ -1389,7 +1343,7 @@ router.post("/api/agent/user-memory", authenticateToken, async (req: any, res) =
     addAgentLog("Memory Agent", "ACT", "Synchronized and updated long-term user productivity memory profile.", req.user.id);
     res.json({ success: true, memory: updatedMemory });
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, error: err.message || "Internal server error" });
   }
 });
 
@@ -1476,7 +1430,7 @@ router.get("/api/agent/reflections", authenticateToken, async (req: any, res) =>
     const reflections = await dbGetReflections(req.user.id);
     res.json(reflections);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, error: err.message || "Internal server error" });
   }
 });
 
@@ -1561,7 +1515,7 @@ router.get("/api/agent/daily-briefing", authenticateToken, async (req: any, res)
 
     return res.json(defaultBriefing);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, error: err.message || "Internal server error" });
   }
 });
 
@@ -1601,7 +1555,7 @@ router.get("/api/agent/explain-recommendation/:taskId", authenticateToken, async
 
     res.json(explanation);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, error: err.message || "Internal server error" });
   }
 });
 
@@ -1611,7 +1565,7 @@ router.get("/api/agent/rescue-history", authenticateToken, async (req: any, res)
     const history = await dbGetRescueHistory(req.user.id);
     res.json(history);
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, error: err.message || "Internal server error" });
   }
 });
 
@@ -1835,7 +1789,7 @@ router.get("/api/agent/activity-feed", authenticateToken, async (req: any, res) 
     const logs = await dbGetAgentLogs(req.user.id);
     res.json(logs.slice(0, 15));
   } catch (err: any) {
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ success: false, error: err.message || "Internal server error" });
   }
 });
 
