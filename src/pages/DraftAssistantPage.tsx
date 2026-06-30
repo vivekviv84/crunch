@@ -94,6 +94,7 @@ export default function DraftAssistantPage() {
       console.error("SSE Draft Error:", err);
       eventSource.close();
       setIsStreaming(false);
+      setDraftText((prev) => prev ? prev : "quota over gemini quota over");
     };
   };
 

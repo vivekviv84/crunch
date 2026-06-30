@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Copy, CheckCircle, RefreshCw, Sparkles, FileText, Download } from "lucide-react";
+import { Copy, CheckCircle, RefreshCw, Sparkles, FileText, Download, Paperclip } from "lucide-react";
 import { Task } from "../types";
+import { api } from "../services/api";
 
 interface DraftAssistantDeskProps {
   tasks: Task[];
@@ -18,8 +19,54 @@ export default function DraftAssistantDesk({ tasks }: DraftAssistantDeskProps) {
   const [isStreaming, setIsStreaming] = useState(false);
   const [copied, setCopied] = useState(false);
   const [exported, setExported] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
   const outputEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await api.post<any>("/api/v1/parse/document", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data"
+        }
+      });
+      
+      const resData = response.data;
+      const extracted = resData.success ? resData.data : resData;
+      
+      let fileContext = `\n\n=== Context from uploaded file: ${file.name} ===\n`;
+      if (extracted.title) fileContext += `Document Title: ${extracted.title}\n`;
+      if (extracted.deliverables && extracted.deliverables.length > 0) {
+        fileContext += `Deliverables:\n${extracted.deliverables.map((d: string) => `- ${d}`).join("\n")}\n`;
+      }
+      if (extracted.rubric && extracted.rubric.length > 0) {
+        fileContext += `Grading Rubric / Criteria:\n${extracted.rubric.map((r: string) => `- ${r}`).join("\n")}\n`;
+      }
+      if (extracted.submissionRequirements) {
+        fileContext += `Submission Requirements:\n${extracted.submissionRequirements}\n`;
+      }
+      if (extracted.documentExtractedText) {
+        fileContext += `Details:\n${extracted.documentExtractedText}\n`;
+      }
+      fileContext += `=====================================\n`;
+
+      setContext((prev) => prev + fileContext);
+    } catch (err: any) {
+      console.error("Failed to parse file for context:", err);
+      alert(`Error extracting document content: ${err.message || err}`);
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
 
   useEffect(() => {
     if (outputEndRef.current) {
@@ -74,6 +121,7 @@ export default function DraftAssistantDesk({ tasks }: DraftAssistantDeskProps) {
       console.error("SSE Error:", err);
       eventSource.close();
       setIsStreaming(false);
+      setDraftText((prev) => prev ? prev : "quota over gemini quota over");
     };
   };
 
@@ -230,9 +278,27 @@ export default function DraftAssistantDesk({ tasks }: DraftAssistantDeskProps) {
 
             {/* Context/Guidelines Textarea */}
             <div className="space-y-1.5">
-              <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider block">
-                Context guidelines
-              </label>
+              <div className="flex items-center justify-between">
+                <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider block">
+                  Context guidelines
+                </label>
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploading}
+                  className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 disabled:text-gray-400 transition-colors flex items-center gap-1 cursor-pointer"
+                >
+                  <Paperclip className="w-3 h-3" />
+                  {isUploading ? "Uploading..." : "Attach Reference File"}
+                </button>
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileUpload}
+                  className="hidden"
+                  accept=".pdf,.doc,.docx,.txt,.md,.html,.png,.jpeg,.webp"
+                />
+              </div>
               <textarea
                 value={context}
                 onChange={(e) => setContext(e.target.value)}

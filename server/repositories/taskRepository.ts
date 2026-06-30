@@ -74,7 +74,15 @@ const localDb = {
 function checkAuthError(err: any): boolean {
   if (!err) return false;
   const msg = (err.message || "").toLowerCase();
-  return msg.includes("credential") || msg.includes("auth") || msg.includes("key") || msg.includes("token") || msg.includes("service account") || msg.includes("could not load");
+  return msg.includes("credential") || 
+         msg.includes("auth") || 
+         msg.includes("key") || 
+         msg.includes("token") || 
+         msg.includes("service account") || 
+         msg.includes("could not load") ||
+         msg.includes("permission") ||
+         msg.includes("denied") ||
+         msg.includes("insufficient");
 }
 
 function handleDbError(methodName: string, err: any) {
@@ -198,7 +206,7 @@ export async function dbDeleteTask(id: string, ownerId: string) {
     localDb.tasks.delete(id);
     return true;
   }
-  return false;
+  return true;
 }
 
 // Keep Notes Operations
@@ -271,7 +279,7 @@ export async function dbDeleteKeepNote(id: string, ownerId: string) {
     localDb.keepNotes.delete(id);
     return true;
   }
-  return false;
+  return true;
 }
 
 // Agent Logs Operations

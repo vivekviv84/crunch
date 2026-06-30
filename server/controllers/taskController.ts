@@ -24,6 +24,17 @@ const createTaskSchema = z.object({
   color: z.string().max(32).optional(),
   isRecurring: z.boolean().optional(),
   recurrence: z.string().max(64).optional(),
+  ownerId: z.string().max(64).optional(),
+  createdAt: z.string().optional(),
+  deadlinesList: z.array(z.string()).max(100).optional(),
+  deliverablesList: z.array(z.string()).max(100).optional(),
+  rubricHighlights: z.string().max(5000).optional(),
+  urgencyAssessment: z.string().max(5000).optional(),
+  wordCount: z.number().optional(),
+  estimatedHours: z.number().optional(),
+  submissionRequirements: z.string().max(5000).optional(),
+  xpGained: z.number().optional(),
+  encouragementMessage: z.string().max(2000).optional(),
 }).strict();
 
 const updateTaskSchema = createTaskSchema.omit({ id: true }).partial().strict();
@@ -91,6 +102,7 @@ export async function createTaskController(req: any, res: any) {
   try {
     const parsed = createTaskSchema.safeParse(req.body);
     if (!parsed.success) {
+      console.error("[Zod Validation Error on createTask]:", JSON.stringify(parsed.error.issues, null, 2));
       return res.status(400).json({ success: false, error: parsed.error.issues[0].message });
     }
     const saved = await taskService.createTask(parsed.data, req.user.id);
@@ -104,6 +116,7 @@ export async function updateTaskController(req: any, res: any) {
   try {
     const parsed = updateTaskSchema.safeParse(req.body);
     if (!parsed.success) {
+      console.error("[Zod Validation Error on updateTask]:", JSON.stringify(parsed.error.issues, null, 2));
       return res.status(400).json({ success: false, error: parsed.error.issues[0].message });
     }
     const saved = await taskService.updateTask(req.params.id, parsed.data, req.user.id);

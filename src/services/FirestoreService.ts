@@ -11,14 +11,32 @@ import {
   limit,
   addDoc
 } from "firebase/firestore";
-import { db, handleFirestoreError, OperationType } from "./firebase";
+import { db, handleFirestoreError, OperationType, auth } from "./firebase";
 import { Task, AgentLog, KeepNote } from "../types/index";
 import { UserMemoryProfile, ReflectionSummary } from "../types/agents";
 import { api } from "./api";
 
+// Helper to unwrap standard backend JSON envelope: { success: true, data: T }
+function unwrapResponse<T>(res: any): T {
+  if (res && res.data && typeof res.data === "object" && "success" in res.data && "data" in res.data) {
+    return res.data.data as T;
+  }
+  return res.data as T;
+}
+
 // === TASKS ===
 
 export async function getAllTasks(userId: string): Promise<Task[]> {
+  // If not authenticated in Firebase (Bypass/Sandbox mode), query backend local DB directly
+  if (!auth.currentUser) {
+    try {
+      const res = await api.get<any>("/api/v1/tasks");
+      return unwrapResponse<Task[]>(res);
+    } catch (apiErr) {
+      return [];
+    }
+  }
+
   try {
     const colRef = collection(db, "tasks");
     const q = query(colRef, where("ownerId", "==", userId), orderBy("createdAt", "desc"));
@@ -31,8 +49,8 @@ export async function getAllTasks(userId: string): Promise<Task[]> {
   } catch (err) {
     console.warn("Firestore fetch failed, falling back to local server API:", err);
     try {
-      const res = await api.get<Task[]>("/api/v1/tasks");
-      return res.data;
+      const res = await api.get<any>("/api/v1/tasks");
+      return unwrapResponse<Task[]>(res);
     } catch (apiErr) {
       handleFirestoreError(err, OperationType.LIST, "tasks");
       return [];
@@ -41,6 +59,16 @@ export async function getAllTasks(userId: string): Promise<Task[]> {
 }
 
 export async function getTaskById(taskId: string): Promise<Task | null> {
+  // If not authenticated in Firebase (Bypass/Sandbox mode), query backend local DB directly
+  if (!auth.currentUser) {
+    try {
+      const res = await api.get<any>(`/api/v1/tasks/${taskId}`);
+      return unwrapResponse<Task>(res);
+    } catch (apiErr) {
+      return null;
+    }
+  }
+
   try {
     const docRef = doc(db, "tasks", taskId);
     const docSnap = await getDoc(docRef);
@@ -51,8 +79,8 @@ export async function getTaskById(taskId: string): Promise<Task | null> {
   } catch (err) {
     console.warn("Firestore getTaskById failed, falling back to local server API:", err);
     try {
-      const res = await api.get<Task>(`/api/v1/tasks/${taskId}`);
-      return res.data;
+      const res = await api.get<any>(`/api/v1/tasks/${taskId}`);
+      return unwrapResponse<Task>(res);
     } catch (apiErr) {
       handleFirestoreError(err, OperationType.GET, `tasks/${taskId}`);
       return null;
@@ -84,14 +112,25 @@ export async function createTask(task: Partial<Task>, userId: string): Promise<T
     recurrence: task.recurrence || "none"
   } as Task;
   
+  // If not authenticated in Firebase (Bypass/Sandbox mode), write to backend local DB directly
+  if (!auth.currentUser) {
+    try {
+      const res = await api.post<any>("/api/v1/tasks", newTask);
+      return unwrapResponse<Task>(res);
+    } catch (apiErr: any) {
+      handleFirestoreError(apiErr, OperationType.CREATE, `tasks/${docRef.id}`);
+      throw apiErr;
+    }
+  }
+
   try {
     await setDoc(docRef, newTask);
     return newTask;
   } catch (err) {
     console.warn("Firestore createTask failed, falling back to local server API:", err);
     try {
-      const res = await api.post<Task>("/api/v1/tasks", newTask);
-      return res.data;
+      const res = await api.post<any>("/api/v1/tasks", newTask);
+      return unwrapResponse<Task>(res);
     } catch (apiErr) {
       handleFirestoreError(err, OperationType.CREATE, `tasks/${docRef.id}`);
       throw err;
@@ -100,6 +139,17 @@ export async function createTask(task: Partial<Task>, userId: string): Promise<T
 }
 
 export async function updateTask(taskId: string, updates: Partial<Task>): Promise<Task> {
+  // If not authenticated in Firebase (Bypass/Sandbox mode), write to backend local DB directly
+  if (!auth.currentUser) {
+    try {
+      const res = await api.patch<any>(`/api/v1/tasks/${taskId}`, updates);
+      return unwrapResponse<Task>(res);
+    } catch (apiErr: any) {
+      handleFirestoreError(apiErr, OperationType.UPDATE, `tasks/${taskId}`);
+      throw apiErr;
+    }
+  }
+
   try {
     const docRef = doc(db, "tasks", taskId);
     await setDoc(docRef, updates, { merge: true });
@@ -108,8 +158,8 @@ export async function updateTask(taskId: string, updates: Partial<Task>): Promis
   } catch (err) {
     console.warn("Firestore updateTask failed, falling back to local server API:", err);
     try {
-      const res = await api.patch<Task>(`/api/v1/tasks/${taskId}`, updates);
-      return res.data;
+      const res = await api.patch<any>(`/api/v1/tasks/${taskId}`, updates);
+      return unwrapResponse<Task>(res);
     } catch (apiErr) {
       handleFirestoreError(err, OperationType.UPDATE, `tasks/${taskId}`);
       throw err;
@@ -118,6 +168,17 @@ export async function updateTask(taskId: string, updates: Partial<Task>): Promis
 }
 
 export async function deleteTask(taskId: string): Promise<void> {
+  // If not authenticated in Firebase (Bypass/Sandbox mode), write to backend local DB directly
+  if (!auth.currentUser) {
+    try {
+      await api.delete(`/api/v1/tasks/${taskId}`);
+      return;
+    } catch (apiErr: any) {
+      handleFirestoreError(apiErr, OperationType.DELETE, `tasks/${taskId}`);
+      throw apiErr;
+    }
+  }
+
   try {
     const docRef = doc(db, "tasks", taskId);
     await deleteDoc(docRef);
@@ -134,6 +195,11 @@ export async function deleteTask(taskId: string): Promise<void> {
 // === AGENT LOGS ===
 
 export async function addAgentLog(log: { agent: string; type: string; message: string }, userId: string): Promise<void> {
+  if (!auth.currentUser) {
+    // Agent logs fallback silently on sandbox mode
+    return;
+  }
+
   const colRef = collection(db, "agentLogs");
   const newLog = {
     ...log,
@@ -148,6 +214,16 @@ export async function addAgentLog(log: { agent: string; type: string; message: s
 }
 
 export async function getAgentLogs(userId: string, limitVal?: number): Promise<AgentLog[]> {
+  // If not authenticated in Firebase, pull logs from backend local DB fallback
+  if (!auth.currentUser) {
+    try {
+      const res = await api.get<any>("/api/logs");
+      return res.data || [];
+    } catch (err) {
+      return [];
+    }
+  }
+
   try {
     const colRef = collection(db, "agentLogs");
     let q = query(colRef, where("ownerId", "==", userId), orderBy("timestamp", "desc"));
@@ -165,7 +241,6 @@ export async function getAgentLogs(userId: string, limitVal?: number): Promise<A
         message: data.message,
       });
     });
-    // Return in chronological order for the logs viewer
     return logs.reverse();
   } catch (err) {
     handleFirestoreError(err, OperationType.LIST, "agentLogs");
@@ -176,6 +251,8 @@ export async function getAgentLogs(userId: string, limitVal?: number): Promise<A
 // === USER MEMORY ===
 
 export async function getUserMemory(userId: string): Promise<UserMemoryProfile | null> {
+  if (!auth.currentUser) return null;
+
   try {
     const docRef = doc(db, "userMemory", userId);
     const docSnap = await getDoc(docRef);
@@ -190,6 +267,8 @@ export async function getUserMemory(userId: string): Promise<UserMemoryProfile |
 }
 
 export async function updateUserMemory(userId: string, data: Partial<UserMemoryProfile>): Promise<void> {
+  if (!auth.currentUser) return;
+
   try {
     const docRef = doc(db, "userMemory", userId);
     await setDoc(docRef, data, { merge: true });
@@ -201,6 +280,8 @@ export async function updateUserMemory(userId: string, data: Partial<UserMemoryP
 // === REFLECTIONS ===
 
 export async function getReflections(userId: string): Promise<ReflectionSummary[]> {
+  if (!auth.currentUser) return [];
+
   try {
     const colRef = collection(db, "reflections");
     const q = query(colRef, where("ownerId", "==", userId), orderBy("date", "desc"));
@@ -217,6 +298,8 @@ export async function getReflections(userId: string): Promise<ReflectionSummary[
 }
 
 export async function addReflection(reflection: Partial<ReflectionSummary>, userId: string): Promise<void> {
+  if (!auth.currentUser) return;
+
   const colRef = collection(db, "reflections");
   const docRef = doc(colRef);
   const newReflection = {
@@ -235,6 +318,16 @@ export async function addReflection(reflection: Partial<ReflectionSummary>, user
 // === KEEP NOTES ===
 
 export async function getKeepNotes(userId: string): Promise<KeepNote[]> {
+  // If not authenticated in Firebase (Bypass/Sandbox mode), query backend local DB directly
+  if (!auth.currentUser) {
+    try {
+      const res = await api.get<any>("/api/v1/keepNotes");
+      return unwrapResponse<KeepNote[]>(res);
+    } catch (apiErr) {
+      return [];
+    }
+  }
+
   try {
     const colRef = collection(db, "keepNotes");
     const q = query(colRef, where("ownerId", "==", userId), orderBy("updatedAt", "desc"));
@@ -247,8 +340,8 @@ export async function getKeepNotes(userId: string): Promise<KeepNote[]> {
   } catch (err) {
     console.warn("Firestore getKeepNotes failed, falling back to local server API:", err);
     try {
-      const res = await api.get<KeepNote[]>("/api/v1/keepNotes");
-      return res.data;
+      const res = await api.get<any>("/api/v1/keepNotes");
+      return unwrapResponse<KeepNote[]>(res);
     } catch (apiErr) {
       handleFirestoreError(err, OperationType.LIST, "keepNotes");
       return [];
@@ -274,14 +367,25 @@ export async function saveKeepNote(note: Partial<KeepNote>, userId: string): Pro
     updatedAt: new Date().toISOString()
   };
   
+  // If not authenticated in Firebase (Bypass/Sandbox mode), write to backend local DB directly
+  if (!auth.currentUser) {
+    try {
+      const res = await api.post<any>("/api/v1/keepNotes", newNote);
+      return unwrapResponse<KeepNote>(res);
+    } catch (apiErr: any) {
+      handleFirestoreError(apiErr, OperationType.WRITE, `keepNotes/${id}`);
+      throw apiErr;
+    }
+  }
+
   try {
     await setDoc(docRef, newNote, { merge: true });
     return newNote;
   } catch (err) {
     console.warn("Firestore saveKeepNote failed, falling back to local server API:", err);
     try {
-      const res = await api.post<KeepNote>("/api/v1/keepNotes", newNote);
-      return res.data;
+      const res = await api.post<any>("/api/v1/keepNotes", newNote);
+      return unwrapResponse<KeepNote>(res);
     } catch (apiErr) {
       handleFirestoreError(err, OperationType.WRITE, `keepNotes/${id}`);
       throw err;
@@ -290,6 +394,17 @@ export async function saveKeepNote(note: Partial<KeepNote>, userId: string): Pro
 }
 
 export async function updateKeepNote(noteId: string, updates: Partial<KeepNote>): Promise<KeepNote> {
+  // If not authenticated in Firebase (Bypass/Sandbox mode), write to backend local DB directly
+  if (!auth.currentUser) {
+    try {
+      const res = await api.put<any>(`/api/v1/keepNotes/${noteId}`, updates);
+      return unwrapResponse<KeepNote>(res);
+    } catch (apiErr: any) {
+      handleFirestoreError(apiErr, OperationType.UPDATE, `keepNotes/${noteId}`);
+      throw apiErr;
+    }
+  }
+
   const docRef = doc(db, "keepNotes", noteId);
   const updatedData = {
     ...updates,
@@ -302,8 +417,8 @@ export async function updateKeepNote(noteId: string, updates: Partial<KeepNote>)
   } catch (err) {
     console.warn("Firestore updateKeepNote failed, falling back to local server API:", err);
     try {
-      const res = await api.put<KeepNote>(`/api/v1/keepNotes/${noteId}`, updatedData);
-      return res.data;
+      const res = await api.put<any>(`/api/v1/keepNotes/${noteId}`, updatedData);
+      return unwrapResponse<KeepNote>(res);
     } catch (apiErr) {
       handleFirestoreError(err, OperationType.UPDATE, `keepNotes/${noteId}`);
       throw err;
@@ -312,6 +427,17 @@ export async function updateKeepNote(noteId: string, updates: Partial<KeepNote>)
 }
 
 export async function deleteKeepNote(noteId: string): Promise<void> {
+  // If not authenticated in Firebase (Bypass/Sandbox mode), write to backend local DB directly
+  if (!auth.currentUser) {
+    try {
+      await api.delete(`/api/v1/keepNotes/${noteId}`);
+      return;
+    } catch (apiErr: any) {
+      handleFirestoreError(apiErr, OperationType.DELETE, `keepNotes/${noteId}`);
+      throw apiErr;
+    }
+  }
+
   try {
     const docRef = doc(db, "keepNotes", noteId);
     await deleteDoc(docRef);

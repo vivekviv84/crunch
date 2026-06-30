@@ -171,8 +171,14 @@ export const useTaskStore = create<TaskState>((set, get) => ({
   createTaskFromIntake: async (text: string) => {
     set({ loading: true, error: null });
     try {
-      const response = await api.post<Task>("/api/v1/tasks/intake", { text });
-      const extractedTask = response.data;
+      const response = await api.post<any>("/api/v1/tasks/intake", { text });
+      let extractedTask = response.data;
+      if (extractedTask && typeof extractedTask === "object" && "success" in extractedTask && "data" in extractedTask) {
+        extractedTask = extractedTask.data;
+      }
+      if (Array.isArray(extractedTask)) {
+        extractedTask = extractedTask[0];
+      }
       
       const userId = useUserStore.getState().user?.id || "usr-default";
       const newTask = await FirestoreService.createTask(extractedTask, userId);
@@ -328,7 +334,7 @@ export const useTaskStore = create<TaskState>((set, get) => ({
       const formData = new FormData();
       formData.append("file", file);
 
-      const response = await api.post<Task>("/api/v1/parse/document", formData, {
+      const response = await api.post<any>("/api/v1/parse/document", formData, {
         headers: {
           "Content-Type": "multipart/form-data"
         },
@@ -340,7 +346,14 @@ export const useTaskStore = create<TaskState>((set, get) => ({
         }
       });
 
-      const extractedTask = response.data;
+      let extractedTask = response.data;
+      if (extractedTask && typeof extractedTask === "object" && "success" in extractedTask && "data" in extractedTask) {
+        extractedTask = extractedTask.data;
+      }
+      if (Array.isArray(extractedTask)) {
+        extractedTask = extractedTask[0];
+      }
+
       const userId = useUserStore.getState().user?.id || "usr-default";
       const newTask = await FirestoreService.createTask(extractedTask, userId);
 

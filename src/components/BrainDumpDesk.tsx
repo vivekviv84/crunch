@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { Mic, RefreshCw, Sparkles, Check, Square, CheckSquare, BrainCircuit, AlertTriangle } from "lucide-react";
+import { api } from "../services/api";
 
 interface BrainDumpDeskProps {
   onTasksExtracted: (tasks: any[]) => void;
@@ -80,15 +81,11 @@ export default function BrainDumpDesk({ onTasksExtracted }: BrainDumpDeskProps) 
     if (!dumpText.trim() || isProcessing) return;
     setIsProcessing(true);
     try {
-      const res = await fetch("/api/agent/brain-dump", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          dumpText, 
-          currentLocalTime: new Date().toISOString() 
-        })
+      const res = await api.post("/api/agent/brain-dump", { 
+        dumpText, 
+        currentLocalTime: new Date().toISOString() 
       });
-      const data = await res.json();
+      const data = res.data;
       
       if (data.prioritizedTasks) {
         setPrioritizedTasks(data.prioritizedTasks);
