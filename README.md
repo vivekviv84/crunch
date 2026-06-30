@@ -1,71 +1,327 @@
-# 🌋 CRUNCH — AI Deadline Rescue Agent
+# 🚀 CRUNCH — AI-Powered Deadline Rescue Platform
 
-> **Transforming Panic into Power.** CRUNCH is an emergency productivity cockpit and AI-driven task rescue supervisor designed to rescue overwhelmed students and professionals from deadline paralysis.
+> Transforming deadline panic into executable action through autonomous AI planning.
 
----
+![Banner](docs/banner.png)
 
-## ⚡ Problem & Core Vision
+<p align="center">
 
-When complex, multi-page syllabus or assignment briefs are released, cognitive overload frequently triggers baseline procrastination. Users enter a **panic loop**, delaying action until under 12 hours remain, resulting in failed courses or subpar submissions. 
+[🌐 Live Demo](#)
+•
+[🎥 Demo Video](#)
+•
+[📄 Documentation](#)
+•
+[📝 Pitch Deck](#)
 
-**CRUNCH solves this.** It is an elite, tactical, full-stack deadline solver that takes chaotic mental dumps, parses dense syllabus PDFs, maps actionable micro-sprints directly to Google Calendar, and compiles submission drafts under tight time constraints.
-
----
-
-## 🎨 Core Features
-
-1. **Syllabus Vision Parser (Gemini 1.5 Pro)**: Upload complex PDFs, JPGs, or PNGs. Gemini automatically isolates precise rubrics, deliverables, word counts, and estimated durations.
-2. **AI Morning Debriefing**: A daily tactical summary of today's core priority, critical risks, and estimation of focused hours needed to pass. Includes a single-trigger CTA: "Start Working".
-3. **Emergency Rescue Cockpit (Rescue Mode)**: Activates automatically when a deadline drops under 24 hours. Formats the UI into a high-contrast dark theme, locking down distractions, initiating active pacing gauges, and focusing on one single subtask sprint.
-4. **Scope Simplifier**: If stress peaks, a one-click co-pilot button immediately trims unrated secondary requirements from the syllabus, focusing purely on passing rubrics.
-5. **Draft Assistant**: A split-screen co-pilot to expand, shorten, or format text outlines on the fly based on extracted deliverables.
-6. **Stress Brain Dump**: An interactive whiteboard to dump unorganized anxieties. CRUNCH parses the chaos, converting thoughts into a structured Battle Plan.
-7. **Google Calendar Allocation**: Seamlessly schedules 25-minute sprints onto your Google Calendar, with a robust fallback "Suggested Schedule Mode" if offline or without credentials.
+</p>
 
 ---
 
-## 🛠️ Tech Stack & Architecture
+# 🎯 The Problem
 
-- **Frontend**: React (v18), Vite, Tailwind CSS, Framer Motion, Zustand (state-management), Lucide Icons
-- **Backend**: Node.js Express server running `tsx` type-stripping
-- **Intelligence Engine**: `@google/genai` TypeScript SDK utilizing `gemini-3.5-flash` and `gemini-1.5-pro` (structured JSON response outputs)
-- **Persistence & Hybrid Fallback**: Hybrid database syncing client-side State and local storage fallbacks with full zero-latency mock support for seamless judging.
+Traditional productivity tools are reactive.
+
+They remind users after work has already fallen behind.
+
+When users receive large assignments or multiple deadlines, they experience:
+
+- Cognitive overload
+- Procrastination
+- Scheduling conflicts
+- Missed deadlines
+
+CRUNCH proactively prevents deadline failure before it happens.
 
 ---
 
-## 🚀 Getting Started
+# 💡 Our Solution
 
-### 1. Requirements
-Ensure you have Node.js (v18+) installed.
+CRUNCH is an AI-powered Deadline Rescue Platform.
 
-### 2. Configure Environment Variables
-Copy `.env.example` to `.env` and fill in your Gemini API Key:
-```env
-GEMINI_API_KEY=your_gemini_api_key_here
+Instead of reminding users what they forgot,
+
+CRUNCH
+
+✅ understands
+
+✅ predicts
+
+✅ prioritizes
+
+✅ rescues
+
+using Gemini-powered autonomous planning.
+
+---
+
+# ⚡ Rescue Pipeline
+
+```text
+Upload Assignment
+        │
+        ▼
+ Gemini understands requirements
+        │
+        ▼
+ Brain Dump → Structured Tasks
+        │
+        ▼
+ Deadline Risk Detection
+        │
+        ▼
+ AI Rescue Agent
+        │
+        ▼
+ Execution Plan
+        │
+        ▼
+ Google Calendar
+        │
+        ▼
+ Focus Sprints
+        │
+        ▼
+ Completion Prediction
 ```
 
-### 3. Installation
-Install project dependencies:
+---
+
+# ✨ Features
+
+## 🚨 AI Rescue Agent
+
+Generates adaptive rescue strategies based on:
+
+- workload
+- deadlines
+- available time
+- calendar conflicts
+- completion probability
+
+---
+
+## 📄 Multimodal Syllabus Parser
+
+Upload
+
+- PDF
+- Images
+- DOCX
+- Assignment sheets
+
+Gemini extracts
+
+- deliverables
+- deadlines
+- grading rubric
+- milestones
+
+---
+
+## 🧠 Brain Dump
+
+Turn chaotic thoughts into
+
+- tasks
+- priorities
+- schedules
+
+---
+
+## 📊 Completion Predictor
+
+Shows
+
+```
+Risk Level
+
+🟢 On Track
+
+🟡 At Risk
+
+🔴 Critical
+```
+
+---
+
+## 📅 Google Calendar Integration
+
+Synchronizes
+
+- Focus Sessions
+
+- Rescue Plans
+
+- Study Blocks
+
+---
+
+## 🔥 Rescue Mode
+
+A distraction-free execution cockpit activated during critical deadlines.
+
+---
+
+# 🏗 Architecture
+
+```
+             React + Vite
+                   │
+              Zustand Store
+                   │
+                   ▼
+          Express + TypeScript
+                   │
+         ┌─────────┴──────────┐
+         ▼                    ▼
+ Gemini API            Firebase
+         │                    │
+         └─────────┬──────────┘
+                   ▼
+            Google Calendar
+```
+
+---
+
+# 🤖 Google Technologies
+
+| Technology | Purpose |
+|------------|---------|
+| Gemini API | AI reasoning & planning |
+| Google GenAI SDK | Structured outputs |
+| Cloud Firestore | Database |
+| Firebase Authentication | Secure authentication |
+| Google Calendar API | Scheduling |
+| Google AI Studio | Prompt development & publishing |
+
+---
+
+# 🛡 Security
+
+- JWT Authentication
+- Firebase Authentication
+- Helmet
+- Zod Validation
+- CSRF Protection
+- Rate Limiting
+
+---
+
+# 🧠 Why CRUNCH?
+
+Traditional Apps
+
+❌ Passive reminders
+
+❌ Manual planning
+
+❌ Generic task lists
+
+CRUNCH
+
+✅ Autonomous rescue
+
+✅ Predictive scheduling
+
+✅ AI planning
+
+✅ Deadline risk analysis
+
+---
+
+# 📸 Screenshots
+
+Dashboard
+
+Brain Dump
+
+Rescue Agent
+
+Document Parser
+
+Rescue Mode
+
+Calendar
+
+---
+
+# 🎥 Demo
+
+Watch the 3-minute demo here.
+
+---
+
+# 🚀 Getting Started
+
+```bash
+git clone ...
+```
+
 ```bash
 npm install
 ```
 
-### 4. Launch Development Server
 ```bash
 npm run dev
-```
-The dev server will boot and bind to port `3000`.
-
-### 5. Compile Build Production Pack
-```bash
-npm run build
 ```
 
 ---
 
-## 🏛️ Special Evaluation Screens (For Judges)
+# ⚙ Environment Variables
 
-We have built dedicated standalone modules so hackathon juries can experience CRUNCH's full features in under 2 minutes:
+```env
+GEMINI_API_KEY=
 
-- **Interactive Pitch Story Deck (`/pitch`)**: Slide-by-slide narrative illustrating how a student under stress transitions from procrastination lock to successful project submission using CRUNCH.
-- **Judge Demo Console (`/demo`)**: Preloaded simulation mode pre-seeding a high-severity "Machine Learning Classifier Assignment" with 8 hours remaining, interactive checklists, a live countdown timer, and simulated co-pilot chats.
+FIREBASE_API_KEY=
+
+GOOGLE_CLIENT_ID=
+
+GOOGLE_CLIENT_SECRET=
+```
+
+---
+
+# 📂 Project Structure
+
+```
+src/
+
+server/
+
+components/
+
+services/
+
+stores/
+
+routes/
+```
+
+---
+
+# 🔮 Future Roadmap
+
+- Multi-Agent Collaboration
+- Long-Term Memory
+- Vertex AI
+- Android
+- Predictive Behaviour Learning
+
+---
+
+# 👥 Team
+
+Name
+
+Role
+
+GitHub
+
+LinkedIn
+
+---
+
+# 📜 License
+
+MIT
