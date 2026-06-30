@@ -2,19 +2,9 @@
 
 > Transforming deadline panic into executable action through autonomous AI planning.
 
-![Banner](docs/banner.png)
+<img width="947" height="569" alt="image" src="https://github.com/user-attachments/assets/843f0c63-f3d0-403c-bf47-81dbfc684b0a" />
+<img width="964" height="571" alt="image" src="https://github.com/user-attachments/assets/7669fc59-9567-4e8f-9699-4b5d92f8a3c2" />
 
-<p align="center">
-
-[🌐 Live Demo](#)
-•
-[🎥 Demo Video](#)
-•
-[📄 Documentation](#)
-•
-[📝 Pitch Deck](#)
-
-</p>
 
 ---
 
@@ -246,12 +236,6 @@ Calendar
 
 ---
 
-# 🎥 Demo
-
-Watch the 3-minute demo here.
-
----
-
 # 🚀 Getting Started
 
 ```bash
@@ -310,18 +294,5 @@ routes/
 
 ---
 
-# 👥 Team
+Name vivek kumar dubey
 
-Name
-
-Role
-
-GitHub
-
-LinkedIn
-
----
-
-# 📜 License
-
-MIT
