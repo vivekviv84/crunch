@@ -220,22 +220,6 @@ CRUNCH
 
 ---
 
-# 📸 Screenshots
-
-Dashboard
-
-Brain Dump
-
-Rescue Agent
-
-Document Parser
-
-Rescue Mode
-
-Calendar
-
----
-
 # 🚀 Getting Started
 
 ```bash
